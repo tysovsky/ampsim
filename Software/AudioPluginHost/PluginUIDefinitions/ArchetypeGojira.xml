@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginControl name="Archetype Gojira">
+	<TopPanel>
+		<ButtonGroup label="Pre Effects">
+			<Button name="OD" param="OD Active" width="100px"/>
+			<Button name="DRT" param="DRT Active" width="100px"/>
+			<Button name="PHSR" param="PHSR Active" width="100px"/>
+			<Button name="CHR" param="CHR Active" width="100px"/>
+		</ButtonGroup>
+		<SelectorButtons param="Amp Type" label="Amp" id="amp_type">
+			<Button name="Clean" width="100px"/>
+			<Button name="Rust" width="100px"/>
+			<Button name="Hot" width="100px"/>
+		</SelectorButtons>
+		<ButtonGroup label="Post Effects">
+			<Button name="DLY" param="DLY Active" width="100px"/>
+			<Button name="REV" param="REV Active" width="100px"/>
+		</ButtonGroup>
+		<Slider param="Output Gain"/>
+	</TopPanel>
+	<BottomPanel>
+		<PanelStack bind_to="amp_type">
+			<Panel>
+				<Slider param="CLN Amp Gain" label="Gain" knob="1"/>
+				<Slider param="CLN Amp Bass" label="Bass" knob="2" />
+				<Slider param="CLN Amp Mid" label="Mid" knob="3" />
+				<Slider param="CLN Amp Treble" label="Treble" knob="4" />
+			</Panel>
+			<Panel>
+				<Slider param="RUST Amp Gain" label="Gain" knob="1"/>
+				<Slider param="RUST Amp Low" label="Low" knob="2"/>
+				<Slider param="RUST Amp Mid" label="Mid" knob="3"/>
+				<Slider param="RUST Amp High" label="High" knob="4"/>
+				<Slider param="RUST Amp Presence" label="Presence" knob="5"/>
+				<Slider param="RUST Amp Depth" label="Depth" knob="6"/>
+			</Panel>
+			<Panel>
+				<Slider param="HOT Amp Gain" label="Gain" knob="1"/>
+				<Slider param="HOT Amp Low" label="Low" knob="2"/>
+				<Slider param="HOT Amp Mid" label="Mid" knob="3"/>
+				<Slider param="HOT Amp High" label="High" knob="4"/>
+				<Slider param="HOT Amp Presence" label="Presence" knob="5"/>
+				<Slider param="HOT Amp Depth" label="Depth" knob="6"/>
+			</Panel>
+		</PanelStack>
+	</BottomPanel>
+</PluginControl>
