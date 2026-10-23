@@ -118,15 +118,20 @@ private:
     void resized() override
     {
         auto r = getLocalBounds();
+        const int h = getHeight();
 
-        burgerButton.setBounds(r.removeFromLeft(40).withSizeKeepingCentre(20, 20));
+        // The buttons span the full bar height so they're easy to hit on the touchscreen,
+        // and the border keeps the icons themselves at a sensible size
+        burgerButton.setBounds(r.removeFromLeft(h + 16));
+        burgerButton.setBorderSize(BorderSize<int>(h / 4));
 
-        pluginButton.setBounds(r.removeFromRight(40).withSizeKeepingCentre(20, 20));
+        pluginButton.setBounds(r.removeFromRight(h + 16));
+        pluginButton.setBorderSize(BorderSize<int>(h / 4));
 
-        saveButton.setBounds(r.removeFromTop(40).withSizeKeepingCentre(50, 20));
+        saveButton.setBounds(r.withSizeKeepingCentre(120, h - 8));
 
-        titleLabel.setFont(Font(static_cast<float> (getHeight()) * 0.5f, Font::plain));
-        titleLabel.setBounds(r);
+        titleLabel.setFont(Font(static_cast<float> (h) * 0.5f, Font::plain));
+        titleLabel.setBounds(r.withRight(saveButton.getX()));
     }
 
     void buttonClicked(Button* b) override
@@ -283,6 +288,8 @@ GraphDocumentComponent::~GraphDocumentComponent()
     if (midiOutput != nullptr)
         midiOutput->stopBackgroundThread();
 
+    deviceManager.removeChangeListener(this);
+
     releaseGraph();
 
     keyState.removeListener(&graphPlayer.getMidiMessageCollector());
@@ -300,7 +307,7 @@ void GraphDocumentComponent::resized()
             return bounds;
         }();
 
-        int titleBarHeight = 30;
+        int titleBarHeight = 44;
         int pluginControlsHeight = 0;
 
 
@@ -411,6 +418,21 @@ bool GraphDocumentComponent::closeAnyOpenPluginWindows()
 void GraphDocumentComponent::changeListenerCallback(ChangeBroadcaster*)
 {
     updateMidiOutput();
+
+    // Only save changes made from the settings panel. Automatic changes, like falling back to another
+    // device because the saved one couldn't be opened at startup, mustn't overwrite the saved choice.
+    if (mobileSettingsSidePanel.isPanelShowing())
+        saveAudioDeviceState();
+}
+
+void GraphDocumentComponent::saveAudioDeviceState()
+{
+    if (auto state = deviceManager.createStateXml())
+    {
+        auto* settings = getAppProperties().getUserSettings();
+        settings->setValue("audioDeviceState", state.get());
+        settings->saveIfNeeded();
+    }
 }
 
 void GraphDocumentComponent::updateMidiOutput()

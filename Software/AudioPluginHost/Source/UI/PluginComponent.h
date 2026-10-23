@@ -63,6 +63,7 @@ private:
     OwnedArray<PinComponent> pins;
     int numInputs = 0, numOutputs = 0;
     int pinSize = 32;
+    int labelPadding = 6;
     Point<int> originalPos;
     Font font{ 13.0f, Font::bold };
     int numIns = 0, numOuts = 0;

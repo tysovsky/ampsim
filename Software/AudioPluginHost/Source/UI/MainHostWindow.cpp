@@ -316,8 +316,7 @@ MainHostWindow::MainHostWindow()
                                      safeThis->deviceManager.initialise (granted ? 256 : 0, 256, savedState.get(), true);
                                  });
 
-    setResizable (true, false);
-    setResizeLimits (500, 400, 10000, 10000);
+    setResizable (false, false);
     centreWithSize (800, 600);
 
 
@@ -327,10 +326,13 @@ MainHostWindow::MainHostWindow()
 
     setContentNonOwned (graphHolder.get(), false);
 
-    setUsingNativeTitleBar (true);
+    // Fill the display with a frameless window. This is what Desktop::setKioskModeComponent() does on
+    // Windows, but JUCE turns kiosk mode off for good as soon as another app takes focus.
+    setUsingNativeTitleBar (false);
+    setTitleBarHeight (0);
 
     restoreWindowStateFromString (getAppProperties().getUserSettings()->getValue ("mainWindowPos"));
-    Desktop::getInstance().setKioskModeComponent(this, false);
+    fillCurrentDisplay();
 
 
     setVisible (true);
@@ -356,7 +358,8 @@ MainHostWindow::MainHostWindow()
 
     Process::setPriority (Process::HighPriority);
 
-    setMenuBar(this);
+    // No menu bar on the device. The menu commands are still reachable through
+    // their keyboard shortcuts (e.g. Ctrl+P for the plugin list, Ctrl+A for audio settings).
 
     getCommandManager().setFirstCommandTarget (this);
 }
@@ -372,14 +375,29 @@ MainHostWindow::~MainHostWindow()
     getAppProperties().getUserSettings()->setValue ("mainWindowPos", getWindowStateAsString());
     clearContentComponent();
 
-    setMenuBar(nullptr);
-
     graphHolder = nullptr;
 }
 
 void MainHostWindow::closeButtonPressed()
 {
     tryToQuitApplication();
+}
+
+void MainHostWindow::parentSizeChanged()
+{
+    // Called when the display configuration changes (resolution, scaling, monitors added or removed)
+    fillCurrentDisplay();
+}
+
+BorderSize<int> MainHostWindow::getBorderThickness()
+{
+    return {};
+}
+
+void MainHostWindow::fillCurrentDisplay()
+{
+    if (auto* display = Desktop::getInstance().getDisplays().getDisplayForRect (getScreenBounds()))
+        setBounds (display->totalArea);
 }
 
 struct AsyncQuitRetrier final : private Timer

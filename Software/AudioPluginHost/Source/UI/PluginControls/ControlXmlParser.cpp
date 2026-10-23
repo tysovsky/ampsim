@@ -5,17 +5,23 @@ std::unordered_map<std::string, std::string> ControlXmlParser::listPluginControl
 {
 	std::unordered_map<std::string, std::string> result;
 
-	for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-		auto path = entry.path().string();
+	// Use the non-throwing overloads: a missing or unreadable directory just means no plugin controls
+	std::error_code ec;
+	for (std::filesystem::directory_iterator it(directory, ec), end; !ec && it != end; it.increment(ec)) {
+		if (!it->is_regular_file(ec))
+			continue;
 
+		auto path = it->path().string();
+
+		// Skip files that aren't plugin control definitions instead of abandoning the scan
 		pugi::xml_document doc;
 		pugi::xml_parse_result xmlParseResult = doc.load_file(path.c_str());
 		if (!xmlParseResult)
-			return result;
+			continue;
 
 		auto pluginControl = doc.child("PluginControl");
 		if (!pluginControl)
-			return result;
+			continue;
 
 		auto pluginName = std::string(pluginControl.attribute("name").as_string());
 

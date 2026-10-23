@@ -3,7 +3,7 @@
 #include <JuceHeader.h>
 #include "PluginControl.h"
 #include "Components.h"
-#include "../pugixml-1.14/src/pugixml.hpp"
+#include <pugixml.hpp>
 
 class ControlXmlParser {
 public:

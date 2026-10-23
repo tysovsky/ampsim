@@ -117,7 +117,7 @@ void PluginComponent::paint(Graphics& g)
 
     g.setColour(findColour(TextEditor::textColourId));
     g.setFont(font);
-    g.drawFittedText(getName(), boxArea, Justification::centred, 2);
+    g.drawFittedText(getName(), boxArea.reduced(labelPadding, 0), Justification::centred, 2);
     if (isActive) {
         g.drawRect(boxArea.toFloat(), 1.0f);
     }
@@ -181,8 +181,9 @@ void PluginComponent::update()
 
     h = jmax(h, (jmax(numIns, numOuts) + 1) * pinSize);
 
+    // The label sits between the pins, so leave room for them on both sides
     const int textWidth = font.getStringWidth(processor.getName());
-    w = jmax(w, 16 + jmin(textWidth, 300));
+    w = jmax(w, 2 * (pinSize + labelPadding) + jmin(textWidth, 300));
     if (textWidth > 300)
         h = 100;
 
@@ -192,6 +193,11 @@ void PluginComponent::update()
     {
         auto p = graph.getNodePosition(pluginID);
         setCentreRelative((float)p.x, (float)p.y);
+
+        // Positions are node centres, so a node near an edge would hang off the panel
+        if (auto* parent = getParentComponent())
+            if (!parent->getLocalBounds().isEmpty())
+                setBounds(getBounds().constrainedWithin(parent->getLocalBounds()));
     }
 
     if (numIns != numInputs || numOuts != numOutputs)

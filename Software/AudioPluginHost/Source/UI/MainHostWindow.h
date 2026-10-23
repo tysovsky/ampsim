@@ -88,6 +88,8 @@ public:
 
     //==============================================================================
     void closeButtonPressed() override;
+    void parentSizeChanged() override;
+    BorderSize<int> getBorderThickness() override;
     void changeListenerCallback (ChangeBroadcaster*) override;
 
     bool isInterestedInFileDrag (const StringArray& files) override;
@@ -124,6 +126,7 @@ private:
     static void updateAutoScaleMenuItem (ApplicationCommandInfo& info);
 
     void showAudioSettings();
+    void fillCurrentDisplay();
 
     //==============================================================================
     AudioDeviceManager deviceManager;
