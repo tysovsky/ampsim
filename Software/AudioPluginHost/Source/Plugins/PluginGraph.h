@@ -70,18 +70,20 @@ public:
     void addPlugin (const PluginDescriptionAndPreference&, Point<double>,
                     std::function<void (NodeID)> onAdded = nullptr);
 
-    /** Adds a plugin fed by every node in sources and feeding every node in destinations.
-        In series, the direct connections from sources to destinations are removed so the audio
-        goes through the new plugin; otherwise it runs in parallel with whatever is already there.
+    /** Adds a plugin, followed by a lane level stage, fed by every node in sources and feeding
+        every node in destinations. In series, the direct connections from sources to destinations
+        are removed so the audio goes through the new plugin; otherwise it runs in parallel with
+        whatever is already there. The level stage shares the plugin's position, which is how the
+        chain view pairs them up.
     */
     void insertPlugin (const PluginDescriptionAndPreference&,
                        std::vector<NodeID> sources, std::vector<NodeID> destinations,
                        Point<double> position, bool inSeries);
 
-    /** Removes a node from the signal chain. If joinNeighbours is true, every source is then
-        connected to every destination so the signal still flows past the gap.
+    /** Removes nodes from the signal chain (a plugin and its level stage). If joinNeighbours is
+        true, every source is then connected to every destination so the signal still flows past the gap.
     */
-    void removeFromChain (NodeID node, const std::vector<NodeID>& sources,
+    void removeFromChain (const std::vector<NodeID>& nodes, const std::vector<NodeID>& sources,
                           const std::vector<NodeID>& destinations, bool joinNeighbours);
 
     AudioProcessorGraph::Node::Ptr getNodeForName (const String& name) const;

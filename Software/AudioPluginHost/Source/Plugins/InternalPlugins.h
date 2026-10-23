@@ -82,3 +82,50 @@ private:
 
     InternalPluginFactory factory;
 };
+
+//==============================================================================
+/**
+    A stereo level stage that the chain view puts straight after each plugin, so the
+    plugins in a parallel column can be mixed against each other. It's an internal
+    plugin so it's saved and restored with the graph, but it's hidden from the user.
+*/
+class LaneLevelProcessor final : public AudioPluginInstance
+{
+public:
+    LaneLevelProcessor();
+
+    static String getIdentifier()                                               { return "Lane Level"; }
+
+    /** The lane's level, from silent (0) to unity gain (1). */
+    AudioParameterFloat& getLevel() noexcept                                    { return *level; }
+
+    //==============================================================================
+    const String getName() const override                                       { return getIdentifier(); }
+    void fillInPluginDescription (PluginDescription&) const override;
+    bool isBusesLayoutSupported (const BusesLayout&) const override;
+
+    void prepareToPlay (double sampleRate, int) override;
+    void releaseResources() override                                            {}
+    void processBlock (AudioBuffer<float>&, MidiBuffer&) override;
+
+    double getTailLengthSeconds() const override                                { return 0.0; }
+    bool acceptsMidi() const override                                           { return false; }
+    bool producesMidi() const override                                          { return false; }
+    AudioProcessorEditor* createEditor() override                               { return nullptr; }
+    bool hasEditor() const override                                             { return false; }
+
+    int getNumPrograms() override                                               { return 1; }
+    int getCurrentProgram() override                                            { return 0; }
+    void setCurrentProgram (int) override                                       {}
+    const String getProgramName (int) override                                  { return {}; }
+    void changeProgramName (int, const String&) override                        {}
+
+    void getStateInformation (MemoryBlock&) override;
+    void setStateInformation (const void* data, int size) override;
+
+private:
+    AudioParameterFloat* level = nullptr;
+    SmoothedValue<float> smoothedLevel;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LaneLevelProcessor)
+};

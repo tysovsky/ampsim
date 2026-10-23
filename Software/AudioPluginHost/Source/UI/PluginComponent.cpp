@@ -1,6 +1,7 @@
 #include "PluginComponent.h"
 #include "GraphEditorPanel.h"
 #include "ThemeManager.h"
+#include "../Plugins/InternalPlugins.h"
 
 #include "PluginControls/ControlXmlParser.h"
 
@@ -37,10 +38,21 @@ PluginComponent::~PluginComponent()
                 bypassParam->removeListener(this);
         }
     }
+
+    setLaneLevel(nullptr);
 }
 
 void PluginComponent::mouseDown(const MouseEvent& e)
 {
+    // Touching the mix bar sets the lane's level instead of selecting the tile
+    if (auto* level = getLaneLevelParameter(); level != nullptr && getMixBarArea().contains(e.getPosition()))
+    {
+        isAdjustingLevel = true;
+        level->beginChangeGesture();
+        setLaneLevelFromPosition(e.x);
+        return;
+    }
+
     originalPos = localPointToGlobal(Point<int>());
 
     toFront(true);
@@ -52,6 +64,12 @@ void PluginComponent::mouseDown(const MouseEvent& e)
 
 void PluginComponent::mouseDrag(const MouseEvent& e)
 {
+    if (isAdjustingLevel)
+    {
+        setLaneLevelFromPosition(e.x);
+        return;
+    }
+
     // Tiles sit in signal-chain order, so dragging doesn't move them; it just cancels a long press
     if (e.getDistanceFromDragStart() > 5)
         stopTimer();
@@ -59,6 +77,16 @@ void PluginComponent::mouseDrag(const MouseEvent& e)
 
 void PluginComponent::mouseUp(const MouseEvent& e)
 {
+    if (isAdjustingLevel)
+    {
+        isAdjustingLevel = false;
+
+        if (auto* level = getLaneLevelParameter())
+            level->endChangeGesture();
+
+        return;
+    }
+
     stopTimer();
 
     if (e.mouseWasDraggedSinceMouseDown())
@@ -94,9 +122,72 @@ void PluginComponent::paint(Graphics& g)
         g.drawRoundedRectangle(tile, 8.0f, 3.0f);
     }
 
-    g.setColour(findColour(TextEditor::textColourId).withMultipliedAlpha(isBypassed ? 0.5f : 1.0f));
+    const auto textColour = findColour(TextEditor::textColourId).withMultipliedAlpha(isBypassed ? 0.5f : 1.0f);
+    auto nameArea = tile.reduced((float)labelPadding);
+
+    if (auto* level = getLaneLevelParameter())
+    {
+        // The mix bar along the bottom: filled up to the lane's level, with the level as a percentage
+        const auto bar = getMixBarArea().toFloat();
+        const auto accent = findColour(AppColourIds::signalPath);
+
+        g.setColour(accent.withAlpha(0.25f));
+        g.fillRoundedRectangle(bar, 4.0f);
+        g.setColour(accent);
+        g.fillRoundedRectangle(bar.withWidth(bar.getWidth() * level->get()), 4.0f);
+
+        g.setColour(textColour);
+        g.setFont(Font(bar.getHeight() * 0.55f, Font::bold));
+        g.drawText("Mix " + String(roundToInt(level->get() * 100.0f)) + "%", bar, Justification::centred);
+
+        nameArea = nameArea.withBottom(bar.getY());
+    }
+
+    g.setColour(textColour);
     g.setFont(font);
-    g.drawFittedText(getName(), tile.reduced((float)labelPadding).toNearestInt(), Justification::centred, 3);
+    g.drawFittedText(getName(), nameArea.toNearestInt(), Justification::centred, 3);
+}
+
+void PluginComponent::setLaneLevel(AudioProcessorGraph::Node::Ptr levelNode)
+{
+    if (levelNode == laneLevelNode)
+        return;
+
+    if (auto* level = getLaneLevelParameter())
+        level->removeListener(this);
+
+    laneLevelNode = levelNode;
+
+    if (auto* level = getLaneLevelParameter())
+        level->addListener(this);
+
+    repaint();
+}
+
+AudioParameterFloat* PluginComponent::getLaneLevelParameter() const
+{
+    if (laneLevelNode != nullptr)
+        if (auto* levelStage = dynamic_cast<LaneLevelProcessor*>(laneLevelNode->getProcessor()))
+            return &levelStage->getLevel();
+
+    return nullptr;
+}
+
+Rectangle<int> PluginComponent::getMixBarArea() const
+{
+    // Inside the tile's rounded corners, tall enough to hit with a finger
+    auto tile = getLocalBounds().reduced(10);
+    return tile.removeFromBottom(jmax(20, roundToInt((float)getHeight() * 0.26f)));
+}
+
+void PluginComponent::setLaneLevelFromPosition(int x)
+{
+    if (auto* level = getLaneLevelParameter())
+    {
+        const auto bar = getMixBarArea();
+        level->setValueNotifyingHost(jlimit(0.0f, 1.0f, (float)(x - bar.getX()) / (float)bar.getWidth()));
+        repaint();
+    }
 }
 
 Point<float> PluginComponent::getPinPos(int index, bool isInput) const

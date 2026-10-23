@@ -35,7 +35,10 @@ public:
     void savePluginState();
     void loadPluginState();
     void setActive(bool active);
-    
+
+    /** Shows a mix bar for the lane level stage that follows this plugin, or hides it if nullptr. */
+    void setLaneLevel(AudioProcessorGraph::Node::Ptr levelNode);
+
     std::map<String, AudioProcessorParameter*> getParameters() {
         std::map<String, AudioProcessorParameter*> result;
 
@@ -55,6 +58,13 @@ public:
 
 private:
     void loadPluginControl();
+    AudioParameterFloat* getLaneLevelParameter() const;
+    Rectangle<int> getMixBarArea() const;
+    void setLaneLevelFromPosition(int x);
+
+    // Held so the level stage outlives this component, which keeps its parameter listener valid
+    AudioProcessorGraph::Node::Ptr laneLevelNode;
+    bool isAdjustingLevel = false;
 
     GraphEditorPanel& panel;
     PluginGraph& graph;

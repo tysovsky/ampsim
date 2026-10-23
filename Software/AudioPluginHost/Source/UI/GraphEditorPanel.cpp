@@ -138,6 +138,8 @@ void GraphEditorPanel::paint (Graphics& g)
     {
         const auto x = (float) busX[gap];
         const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
+
+        // Tiles are drawn for the plugins; their level stages sit invisibly just after them
         auto top = std::numeric_limits<float>::max();
         auto bottom = std::numeric_limits<float>::lowest();
 
@@ -224,7 +226,7 @@ void GraphEditorPanel::insertInSeries (const PluginDescriptionAndPreference& des
     // A new column halfway between its neighbours' positions, so it sorts between them
     const auto position = (columns[gap].position + columns[gap + 1].position) / 2.0;
 
-    graph.insertPlugin (desc, columns[gap].nodes, columns[gap + 1].nodes, { position, 0.0 }, true);
+    graph.insertPlugin (desc, columns[gap].getOutputs(), columns[gap + 1].getInputs(), { position, 0.0 }, true);
 }
 
 void GraphEditorPanel::insertInParallel (const PluginDescriptionAndPreference& desc, size_t column)
@@ -235,7 +237,7 @@ void GraphEditorPanel::insertInParallel (const PluginDescriptionAndPreference& d
     // Same x as the rest of the column, and a row below its lowest plugin
     const auto row = graph.getNodePosition (columns[column].nodes.back()).y + 1.0;
 
-    graph.insertPlugin (desc, columns[column - 1].nodes, columns[column + 1].nodes,
+    graph.insertPlugin (desc, columns[column - 1].getOutputs(), columns[column + 1].getInputs(),
                         { columns[column].position, row }, false);
 }
 
@@ -244,13 +246,27 @@ void GraphEditorPanel::removeFromChain (AudioProcessorGraph::NodeID nodeID)
     // The input and output nodes at either end stay put
     for (size_t c = 1; c + 1 < columns.size(); ++c)
     {
-        const auto& column = columns[c].nodes;
+        const auto& column = columns[c];
+        const auto it = std::find (column.nodes.begin(), column.nodes.end(), nodeID);
 
-        if (std::find (column.begin(), column.end(), nodeID) == column.end())
+        if (it == column.nodes.end())
             continue;
 
+        const auto index = (size_t) std::distance (column.nodes.begin(), it);
+        std::vector<AudioProcessorGraph::NodeID> toRemove { nodeID };
+
+        if (column.levels[index] != AudioProcessorGraph::NodeID())
+            toRemove.push_back (column.levels[index]);
+
+        // When one of two parallel plugins goes, the other is on its own again, so put its level
+        // back to full rather than leave it quietly turned down with no mix bar to show it
+        if (column.nodes.size() == 2)
+            if (auto* remaining = graph.graph.getNodeForId (column.levels[1 - index]))
+                if (auto* level = dynamic_cast<LaneLevelProcessor*> (remaining->getProcessor()))
+                    level->getLevel().setValueNotifyingHost (1.0f);
+
         // If it was the last plugin in its column, join the columns either side so the signal still flows
-        graph.removeFromChain (nodeID, columns[c - 1].nodes, columns[c + 1].nodes, column.size() == 1);
+        graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
         return;
     }
 }
@@ -355,10 +371,21 @@ std::vector<GraphEditorPanel::Column> GraphEditorPanel::findColumns() const
     // connections, so a plugin stays in place even when no audio reaches it (e.g. with no input
     // device). The I/O nodes, including the MIDI ones, aren't plugins.
     std::vector<AudioProcessorGraph::Node*> plugins;
+    std::map<std::pair<double, double>, AudioProcessorGraph::NodeID> levelsByPosition;
+
+    const auto positionOf = [] (const AudioProcessorGraph::Node* node)
+    {
+        return std::make_pair ((double) node->properties["x"], (double) node->properties["y"]);
+    };
 
     for (auto* node : graph.graph.getNodes())
-        if (dynamic_cast<IOProcessor*> (node->getProcessor()) == nullptr)
+    {
+        // Level stages aren't shown; each one belongs to the plugin at the same position
+        if (dynamic_cast<LaneLevelProcessor*> (node->getProcessor()) != nullptr)
+            levelsByPosition[positionOf (node)] = node->nodeID;
+        else if (dynamic_cast<IOProcessor*> (node->getProcessor()) == nullptr)
             plugins.push_back (node);
+    }
 
     std::sort (plugins.begin(), plugins.end(), [] (const auto* a, const auto* b)
     {
@@ -370,31 +397,49 @@ std::vector<GraphEditorPanel::Column> GraphEditorPanel::findColumns() const
         return a->nodeID.uid < b->nodeID.uid;
     });
 
-    result.push_back ({ { input->nodeID }, 0.0 });
+    result.push_back ({ { input->nodeID }, 0.0, { {} } });
 
     for (auto* node : plugins)
     {
         const auto x = (double) node->properties["x"];
+        const auto levelIt = levelsByPosition.find (positionOf (node));
+        const auto level = levelIt != levelsByPosition.end() ? levelIt->second : AudioProcessorGraph::NodeID();
 
         if (result.size() > 1 && result.back().position == x)
+        {
             result.back().nodes.push_back (node->nodeID);
+            result.back().levels.push_back (level);
+        }
         else
-            result.push_back ({ { node->nodeID }, x });
+        {
+            result.push_back ({ { node->nodeID }, x, { level } });
+        }
     }
 
-    result.push_back ({ { output->nodeID }, 1.0 });
+    result.push_back ({ { output->nodeID }, 1.0, { {} } });
     return result;
+}
+
+std::vector<AudioProcessorGraph::NodeID> GraphEditorPanel::Column::getOutputs() const
+{
+    auto outputs = nodes;
+
+    for (size_t i = 0; i < outputs.size() && i < levels.size(); ++i)
+        if (levels[i] != AudioProcessorGraph::NodeID())
+            outputs[i] = levels[i];
+
+    return outputs;
 }
 
 bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& destinations) const
 {
+    const auto from = sources.getOutputs();
+    const auto& to = destinations.getInputs();
+
     for (auto& connection : graph.graph.getConnections())
     {
         if (connection.source.isMIDI())
             continue;
-
-        const auto& from = sources.nodes;
-        const auto& to = destinations.nodes;
 
         if (std::find (from.begin(), from.end(), connection.source.nodeID) != from.end()
              && std::find (to.begin(), to.end(), connection.destination.nodeID) != to.end())
@@ -493,9 +538,17 @@ void GraphEditorPanel::layoutChain()
     {
         const auto& column = columns[(size_t) c];
 
+        // Plugins sharing a column get a mix bar for their lane's level
+        const bool isParallel = column.nodes.size() > 1;
+
         for (size_t row = 0; row < column.nodes.size(); ++row)
+        {
             if (auto* comp = getComponentForPlugin (column.nodes[row]))
+            {
                 comp->setBounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
+                comp->setLaneLevel (isParallel ? graph.graph.getNodeForId (column.levels[row]) : nullptr);
+            }
+        }
 
         const bool hasLane = canAddParallel ((size_t) c);
         parallelButtons[c]->setVisible (hasLane);

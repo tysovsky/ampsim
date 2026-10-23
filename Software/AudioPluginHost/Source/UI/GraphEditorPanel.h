@@ -114,6 +114,13 @@ private:
     {
         std::vector<AudioProcessorGraph::NodeID> nodes;   // top to bottom
         double position = 0.0;                            // the nodes' shared x, which orders the columns
+        std::vector<AudioProcessorGraph::NodeID> levels;  // each node's lane level stage, if it has one
+
+        /** Where audio from the previous column goes in: the plugins themselves. */
+        const std::vector<AudioProcessorGraph::NodeID>& getInputs() const    { return nodes; }
+
+        /** Where audio leaves for the next column: each plugin's level stage, or the plugin if it has none. */
+        std::vector<AudioProcessorGraph::NodeID> getOutputs() const;
     };
 
     std::vector<Column> findColumns() const;

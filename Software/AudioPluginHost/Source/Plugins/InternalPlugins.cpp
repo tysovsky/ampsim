@@ -438,6 +438,7 @@ InternalPluginFormat::InternalPluginFormat()
         [] { return std::make_unique<AudioProcessorGraph::AudioGraphIOProcessor> (AudioProcessorGraph::AudioGraphIOProcessor::midiInputNode); },
         [] { return std::make_unique<AudioProcessorGraph::AudioGraphIOProcessor> (AudioProcessorGraph::AudioGraphIOProcessor::audioOutputNode); },
         [] { return std::make_unique<AudioProcessorGraph::AudioGraphIOProcessor> (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode); },
+        [] { return std::make_unique<LaneLevelProcessor>(); },
 
         //[] { return std::make_unique<InternalPlugin> (std::make_unique<SineWaveSynth>()); },
         //[] { return std::make_unique<InternalPlugin> (std::make_unique<ReverbPlugin>()); },
@@ -479,4 +480,63 @@ bool InternalPluginFormat::requiresUnblockedMessageThreadDuringCreation (const P
 const std::vector<PluginDescription>& InternalPluginFormat::getAllTypes() const
 {
     return factory.getDescriptions();
+}
+
+//==============================================================================
+LaneLevelProcessor::LaneLevelProcessor()
+    : AudioPluginInstance (BusesProperties().withInput  ("Input",  AudioChannelSet::stereo())
+                                            .withOutput ("Output", AudioChannelSet::stereo()))
+{
+    // AudioPluginInstance hides addParameter because hosted plugins must use HostedParameters,
+    // but this processor is our own, so a plain parameter is fine
+    AudioProcessor::addParameter (level = new AudioParameterFloat ({ "level", 1 }, "Level", 0.0f, 1.0f, 1.0f));
+}
+
+void LaneLevelProcessor::fillInPluginDescription (PluginDescription& description) const
+{
+    description.name              = getIdentifier();
+    description.descriptiveName   = getIdentifier();
+    description.pluginFormatName  = InternalPluginFormat::getIdentifier();
+    description.category          = "Utility";
+    description.manufacturerName  = "JUCE";
+    description.version           = ProjectInfo::versionString;
+    description.fileOrIdentifier  = getIdentifier();
+    description.numInputChannels  = 2;
+    description.numOutputChannels = 2;
+    description.uniqueId = description.deprecatedUid = getIdentifier().hashCode();
+}
+
+bool LaneLevelProcessor::isBusesLayoutSupported (const BusesLayout& layout) const
+{
+    const auto& main = layout.getMainOutputChannelSet();
+    return (main == AudioChannelSet::mono() || main == AudioChannelSet::stereo())
+            && main == layout.getMainInputChannelSet();
+}
+
+void LaneLevelProcessor::prepareToPlay (double sampleRate, int)
+{
+    // A short ramp so moving the level doesn't click
+    smoothedLevel.reset (sampleRate, 0.05);
+    smoothedLevel.setCurrentAndTargetValue (level->get());
+}
+
+void LaneLevelProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
+{
+    smoothedLevel.setTargetValue (level->get());
+
+    const auto startLevel = smoothedLevel.getCurrentValue();
+    smoothedLevel.skip (buffer.getNumSamples());
+
+    buffer.applyGainRamp (0, buffer.getNumSamples(), startLevel, smoothedLevel.getCurrentValue());
+}
+
+void LaneLevelProcessor::getStateInformation (MemoryBlock& block)
+{
+    MemoryOutputStream (block, false).writeFloat (level->get());
+}
+
+void LaneLevelProcessor::setStateInformation (const void* data, int size)
+{
+    if (size >= (int) sizeof (float))
+        *level = MemoryInputStream (data, (size_t) size, false).readFloat();
 }

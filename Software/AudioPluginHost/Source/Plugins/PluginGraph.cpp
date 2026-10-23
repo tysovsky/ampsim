@@ -98,8 +98,18 @@ void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc,
                                 std::vector<NodeID> sources, std::vector<NodeID> destinations,
                                 Point<double> position, bool inSeries)
 {
-    addPlugin (desc, position, [this, sources, destinations, inSeries] (NodeID added)
+    addPlugin (desc, position, [this, sources, destinations, inSeries, position] (NodeID added)
     {
+        auto output = added;
+
+        if (auto levelNode = graph.addNode (std::make_unique<LaneLevelProcessor>()))
+        {
+            levelNode->properties.set ("x", position.x);
+            levelNode->properties.set ("y", position.y);
+            connectAudio (added, levelNode->nodeID);
+            output = levelNode->nodeID;
+        }
+
         for (auto source : sources)
         {
             if (inSeries)
@@ -110,14 +120,15 @@ void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc,
         }
 
         for (auto destination : destinations)
-            connectAudio (added, destination);
+            connectAudio (output, destination);
     });
 }
 
-void PluginGraph::removeFromChain (NodeID node, const std::vector<NodeID>& sources,
+void PluginGraph::removeFromChain (const std::vector<NodeID>& nodes, const std::vector<NodeID>& sources,
                                    const std::vector<NodeID>& destinations, bool joinNeighbours)
 {
-    graph.removeNode (node);
+    for (auto node : nodes)
+        graph.removeNode (node);
 
     if (joinNeighbours)
         for (auto source : sources)
