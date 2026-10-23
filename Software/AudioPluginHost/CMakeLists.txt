@@ -49,6 +49,9 @@ FetchContent_MakeAvailable(JUCE pugixml)
 # Download it from Steinberg and configure with -DASIO_SDK_DIR=<path to the SDK>.
 set(ASIO_SDK_DIR "" CACHE PATH "Path to the Steinberg ASIO SDK (enables the ASIO device type)")
 
+# Developer tools in Tools/ (e.g. ParamDump, for mapping a plugin's parameters)
+option(AUDIOPLUGINHOST_BUILD_TOOLS "Also build the developer tools in Tools/" OFF)
+
 # ==============================================================================
 juce_add_gui_app(AudioPluginHost
     BUNDLE_ID                       com.juce.pluginhost
@@ -135,3 +138,7 @@ target_link_libraries(AudioPluginHost PRIVATE
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags)
+
+if(AUDIOPLUGINHOST_BUILD_TOOLS)
+    add_subdirectory(Tools/ParamDump)
+endif()
