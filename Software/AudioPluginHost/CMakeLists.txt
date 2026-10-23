@@ -69,6 +69,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/PluginGraph.cpp
     Source/Plugins/PluginModules.cpp
     Source/UI/AudioSettingsPopup.cpp
+    Source/UI/BlockIcons.cpp
     Source/UI/ConnectorComponent.cpp
     Source/UI/GraphDocumentComponent.cpp
     Source/UI/GraphEditorPanel.cpp
@@ -76,6 +77,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/UI/PinComponent.cpp
     Source/UI/PluginComponent.cpp
     Source/UI/PluginControlsPanel.cpp
+    Source/UI/PluginPicker.cpp
     Source/UI/ThemeManager.cpp
     Source/UI/PluginControls/ArchetypeGojiraa.cpp
     Source/UI/PluginControls/ControlXmlParser.cpp

@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "PinComponent.h"
+#include "BlockIcons.h"
 
 class GraphEditorPanel;
 class PluginControl;
@@ -75,6 +76,7 @@ private:
     Point<int> originalPos;
     Font font{ 16.0f, Font::bold };
     String subtitle;    // the plugin's name, when the tile shows one of its modules
+    BlockIcon icon = BlockIcon::plugin;
     int numIns = 0, numOuts = 0;
     DropShadowEffect shadow;
     std::unique_ptr<PopupMenu> menu;

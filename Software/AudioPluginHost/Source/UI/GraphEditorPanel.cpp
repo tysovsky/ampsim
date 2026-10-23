@@ -86,6 +86,8 @@ GraphEditorPanel::GraphEditorPanel (PluginGraph& g, KnownPluginList& kpl)
         for (auto& [name, set] : PluginModuleSet::loadAll (folder))
             moduleSets.emplace (name, std::move (set));
     }
+
+    picker = std::make_unique<PluginPicker> (knownPlugins, moduleSets);
 }
 
 GraphEditorPanel::~GraphEditorPanel()
@@ -293,6 +295,34 @@ void GraphEditorPanel::removeFromChain (AudioProcessorGraph::NodeID nodeID)
         graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
         return;
     }
+}
+
+BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) const
+{
+    auto* node = graph.graph.getNodeForId (nodeID);
+
+    if (node == nullptr)
+        return BlockIcon::plugin;
+
+    if (auto* io = dynamic_cast<AudioProcessorGraph::AudioGraphIOProcessor*> (node->getProcessor()))
+        return io->isInput() ? BlockIcon::input : BlockIcon::output;
+
+    auto* plugin = dynamic_cast<AudioPluginInstance*> (node->getProcessor());
+    const auto setIt = plugin != nullptr ? moduleSets.find (plugin->getPluginDescription().name) : moduleSets.end();
+
+    if (setIt == moduleSets.end())
+        return BlockIcon::plugin;
+
+    // One of a plugin's modules shows what kind of block it is; the whole plugin shows it's a suite
+    const auto moduleName = node->properties["module"].toString();
+
+    if (moduleName.isEmpty())
+        return BlockIcon::suite;
+
+    if (auto* module = setIt->second.findModule (moduleName))
+        return blockIconFromName (module->icon);
+
+    return BlockIcon::plugin;
 }
 
 PluginComponent* GraphEditorPanel::getComponentForPlugin (AudioProcessorGraph::NodeID nodeID) const
@@ -514,7 +544,7 @@ void GraphEditorPanel::layoutChain()
 
     resizeButtons (seriesButtons, numGaps, [this] (int gap)
     {
-        showPluginPicker (*seriesButtons[gap], [this, gap] (const PluginChoice& choice)
+        showPluginPicker ([this, gap] (const PluginChoice& choice)
         {
             insertInSeries (choice, (size_t) gap);
         });
@@ -522,7 +552,7 @@ void GraphEditorPanel::layoutChain()
 
     resizeButtons (parallelButtons, numColumns, [this] (int column)
     {
-        showPluginPicker (*parallelButtons[column], [this, column] (const PluginChoice& choice)
+        showPluginPicker ([this, column] (const PluginChoice& choice)
         {
             insertInParallel (choice, (size_t) column);
         });
@@ -598,80 +628,16 @@ void GraphEditorPanel::layoutChain()
     repaint();
 }
 
-void GraphEditorPanel::showPluginPicker (Component& target, std::function<void (const PluginChoice&)> onChosen)
+void GraphEditorPanel::showPluginPicker (std::function<void (const PluginChoice&)> onChosen)
 {
-    // Everything that's been scanned, apart from the input and output nodes
-    Array<PluginDescription> types;
+    // Over the whole window, title bar included, rather than just this panel
+    Component* parent = this;
 
-    for (auto& type : knownPlugins.getTypes())
-        if (type.category != "I/O devices")
-            types.add (type);
+    if (auto* window = findParentComponentOfClass<ResizableWindow>())
+        if (auto* content = window->getContentComponent())
+            parent = content;
 
-    std::sort (types.begin(), types.end(),
-               [] (const PluginDescription& a, const PluginDescription& b) { return a.name.compareNatural (b.name) < 0; });
-
-    pickerChoices.clear();
-
-    const auto addChoice = [this] (PopupMenu& menu, const String& text, PluginChoice choice)
-    {
-        pickerChoices.push_back (std::move (choice));
-        menu.addItem ((int) pickerChoices.size(), text);
-    };
-
-    PopupMenu picker;
-    picker.setLookAndFeel (&touchLookAndFeel);
-
-    if (types.isEmpty())
-        picker.addItem (-1, "No plugins found - scan for plugins first", false);
-
-    for (auto& type : types)
-    {
-        const auto setIt = moduleSets.find (type.name);
-
-        if (setIt == moduleSets.end())
-        {
-            addChoice (picker, type.name, { PluginDescriptionAndPreference { type } });
-            continue;
-        }
-
-        // A plugin with modules gets a submenu: the whole plugin, then its modules, grouped as in
-        // its definition file (e.g. Archetype Tim Henson X > Amps > Roses (Clean))
-        const auto& set = setIt->second;
-        std::map<String, PopupMenu> groupMenus;
-
-        for (auto& module : set.getModules())
-            if (module.group.isNotEmpty())
-                addChoice (groupMenus[module.group], module.name, { PluginDescriptionAndPreference { type }, &set, &module });
-
-        PopupMenu pluginMenu;
-        addChoice (pluginMenu, "Full plugin", { PluginDescriptionAndPreference { type } });
-        pluginMenu.addSeparator();
-
-        StringArray addedGroups;
-
-        for (auto& module : set.getModules())
-        {
-            if (module.group.isEmpty())
-            {
-                addChoice (pluginMenu, module.name, { PluginDescriptionAndPreference { type }, &set, &module });
-            }
-            else if (! addedGroups.contains (module.group))
-            {
-                addedGroups.add (module.group);
-                pluginMenu.addSubMenu (module.group, groupMenus[module.group]);
-            }
-        }
-
-        picker.addSubMenu (type.name, pluginMenu);
-    }
-
-    picker.showMenuAsync (TouchLookAndFeel::getMenuOptions (target, jmax (1, types.size()), insertButtonSize)
-                            .withMinimumWidth (300),
-                        [safeThis = SafePointer<GraphEditorPanel> (this), onChosen] (int result)
-                        {
-                            if (safeThis != nullptr && isPositiveAndBelow (result - 1, (int) safeThis->pickerChoices.size()))
-                                onChosen (safeThis->pickerChoices[(size_t) result - 1]);
-                        });
+    picker->show (*parent, std::move (onChosen));
 }
 
 void GraphEditorPanel::showPopupMenu (Point<int> mousePos)

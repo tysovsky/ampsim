@@ -12,9 +12,13 @@ namespace
         return settings;
     }
 
-    PluginModule readModule (const XmlElement& element, const String& group)
+    PluginModule readModule (const XmlElement& element, const XmlElement* group)
     {
-        return { group, element.getStringAttribute ("name"), readSettings (element) };
+        const auto groupName = group != nullptr ? group->getStringAttribute ("name") : String();
+        const auto groupIcon = group != nullptr ? group->getStringAttribute ("icon") : String();
+
+        return { groupName, element.getStringAttribute ("name"), element.getStringAttribute ("icon", groupIcon),
+                 readSettings (element) };
     }
 
     AudioProcessorParameter* findParameter (AudioProcessor& processor, const String& name)
@@ -72,10 +76,10 @@ PluginModuleSet PluginModuleSet::load (const File& definitionFile)
     for (auto* child : modulesElement->getChildIterator())
     {
         if (child->hasTagName ("Module"))
-            result.modules.push_back (readModule (*child, {}));
+            result.modules.push_back (readModule (*child, nullptr));
         else if (child->hasTagName ("Group"))
             for (auto* module : child->getChildWithTagNameIterator ("Module"))
-                result.modules.push_back (readModule (*module, child->getStringAttribute ("name")));
+                result.modules.push_back (readModule (*module, child));
     }
 
     return result;

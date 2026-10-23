@@ -14,6 +14,7 @@ struct PluginModule
 
     String group;       // e.g. "Amps", or empty for a module that isn't in a group
     String name;        // e.g. "Roses (Clean)"
+    String icon;        // what kind of block it is, e.g. "amp", from the module or else its group
     Settings settings;  // applied after the plugin's "off" settings
 };
 

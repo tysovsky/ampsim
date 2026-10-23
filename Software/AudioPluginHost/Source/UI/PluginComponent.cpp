@@ -143,9 +143,16 @@ void PluginComponent::paint(Graphics& g)
         nameArea = nameArea.withBottom(bar.getY());
     }
 
-    if (subtitle.isNotEmpty())
+    // The icon across the top says what kind of block this is. It gets all but a line of the name's
+    // space on small tiles, and the plugin's name only goes underneath on tiles without a mix bar.
+    const auto iconColour = findColour(AppColourIds::signalPath).withMultipliedAlpha(isBypassed ? 0.5f : 1.0f);
+    const bool showSubtitle = subtitle.isNotEmpty() && nameArea.getHeight() >= 90.0f;
+
+    drawBlockIcon(g, icon, nameArea.removeFromTop(jmin(40.0f, nameArea.getHeight() - 24.0f)).reduced(0.0f, 2.0f), iconColour);
+
+    if (showSubtitle)
     {
-        const auto subtitleArea = nameArea.removeFromBottom(nameArea.getHeight() * 0.35f);
+        const auto subtitleArea = nameArea.removeFromBottom(26.0f);
         g.setColour(textColour.withMultipliedAlpha(0.6f));
         g.setFont(Font(12.0f));
         g.drawFittedText(subtitle, subtitleArea.toNearestInt(), Justification::centredTop, 2);
@@ -219,6 +226,7 @@ void PluginComponent::update()
 
     setName(moduleName.isNotEmpty() ? moduleName : pluginName);
     subtitle = moduleName.isNotEmpty() ? pluginName : String();
+    icon = panel.getBlockIcon(pluginID);
     repaint();
 }
 

@@ -6,6 +6,9 @@
   everything off, then applies the module's own settings. Values are matched against the
   plugin's own text for each step of the parameter ("On", "Roses", ...).
 
+  The icon attribute says what kind of block a module is, for its icon in the chain and the
+  plugin picker: "amp", "pedal" or "eq". A module without one takes its group's.
+
   The plugin calls its amps Roses, Cherubs and Pink. Its factory presets use Roses for clean
   and acoustic sounds, Cherubs for clean-to-crunch rhythm, and Pink for leads and high gain.
 -->
@@ -28,7 +31,7 @@
       <Set param="Reverb Active" value="Off"/>
     </Off>
 
-    <Group name="Amps">
+    <Group name="Amps" icon="amp">
       <Module name="Roses (Clean)">
         <Set param="Active Amp Section" value="On"/>
         <Set param="Active Cab Section" value="On"/>
@@ -46,7 +49,7 @@
       </Module>
     </Group>
 
-    <Group name="Pedals">
+    <Group name="Pedals" icon="pedal">
       <Module name="Boost">
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Boost Active" value="On"/>
@@ -73,7 +76,7 @@
       </Module>
     </Group>
 
-    <Module name="EQ">
+    <Module name="EQ" icon="eq">
       <Set param="Active EQ Section" value="On"/>
     </Module>
   </Modules>
