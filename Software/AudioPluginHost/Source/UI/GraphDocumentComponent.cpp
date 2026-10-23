@@ -257,7 +257,7 @@ void GraphDocumentComponent::init()
 {
     updateMidiOutput();
 
-    graphPanel.reset(new GraphEditorPanel(*graph));
+    graphPanel.reset(new GraphEditorPanel(*graph, pluginList));
     graphPanel->addListener(this);
     addAndMakeVisible(graphPanel.get());
     graphPlayer.setProcessor(&graph->graph);

@@ -29,13 +29,16 @@
 #include "PluginComponent.h"
 #include "ConnectorComponent.h"
 #include "PinComponent.h"
+#include "TouchLookAndFeel.h"
 
 class MainHostWindow;
 
 
 //==============================================================================
 /**
-    A panel that displays and edits a PluginGraph.
+    A panel that displays and edits a PluginGraph as a signal chain running left
+    to right, from the audio input to the audio output, like a row of pedals.
+    A + button between each pair of nodes inserts a plugin at that point.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -51,10 +54,14 @@ public:
     };
 
     //==============================================================================
-    GraphEditorPanel (PluginGraph& graph);
+    GraphEditorPanel (PluginGraph& graph, KnownPluginList& knownPlugins);
     ~GraphEditorPanel() override;
 
+    /** Inserts a plugin into the chain at the + button nearest to the given position. */
     void createNewPlugin (const PluginDescriptionAndPreference&, Point<int> position);
+
+    /** Removes a plugin from the chain, joining up the nodes either side of it. */
+    void removeFromChain (AudioProcessorGraph::NodeID);
 
     void paint (Graphics&) override;
     void resized() override;
@@ -97,6 +104,21 @@ public:
     std::unordered_map<std::string, std::string> pluginControlPaths;
 
 private:
+    class InsertButton;
+
+    std::vector<AudioProcessorGraph::NodeID> findChain() const;
+    double getChainPosition (size_t index) const;
+    void insertIntoChain (const PluginDescriptionAndPreference&, int gapIndex);
+    bool isAudioConnected (AudioProcessorGraph::NodeID source, AudioProcessorGraph::NodeID destination) const;
+    void layoutChain();
+    void showPluginPicker (int gapIndex);
+
+    KnownPluginList& knownPlugins;
+    TouchLookAndFeel touchLookAndFeel;
+    std::vector<AudioProcessorGraph::NodeID> chain;
+    OwnedArray<InsertButton> insertButtons;
+    Array<PluginDescription> pickerTypes;
+
     OwnedArray<PluginComponent> nodes;
     OwnedArray<ConnectorComponent> connectors;
     std::unique_ptr<ConnectorComponent> draggingConnector;

@@ -17,7 +17,8 @@ namespace
             { AppColourIds::pluginListSelectedRow,  scheme.getUIColour(UIColour::defaultFill) },
             { AppColourIds::pluginListText,         Colours::white },
             { AppColourIds::pluginListSelectedText, Colours::black },
-            { AppColourIds::bypassedNodeBackground, scheme.getUIColour(UIColour::widgetBackground).brighter() }
+            { AppColourIds::bypassedNodeBackground, scheme.getUIColour(UIColour::widgetBackground).brighter() },
+            { AppColourIds::signalPath,             scheme.getUIColour(UIColour::defaultFill) }
         } };
     }
 
@@ -33,7 +34,8 @@ namespace
             { AppColourIds::pluginListSelectedRow,  scheme.getUIColour(UIColour::highlightedFill) },
             { AppColourIds::pluginListText,         Colours::black },
             { AppColourIds::pluginListSelectedText, Colours::white },
-            { AppColourIds::bypassedNodeBackground, scheme.getUIColour(UIColour::widgetBackground).darker(0.15f) }
+            { AppColourIds::bypassedNodeBackground, scheme.getUIColour(UIColour::widgetBackground).darker(0.15f) },
+            { AppColourIds::signalPath,             scheme.getUIColour(UIColour::highlightedFill) }
         } };
     }
 }

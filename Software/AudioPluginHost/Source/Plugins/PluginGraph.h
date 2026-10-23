@@ -67,7 +67,14 @@ public:
     //==============================================================================
     using NodeID = AudioProcessorGraph::NodeID;
 
-    void addPlugin (const PluginDescriptionAndPreference&, Point<double>);
+    void addPlugin (const PluginDescriptionAndPreference&, Point<double>,
+                    std::function<void (NodeID)> onAdded = nullptr);
+
+    /** Adds a plugin between two neighbouring nodes of the signal chain and routes the audio through it. */
+    void insertPlugin (const PluginDescriptionAndPreference&, NodeID before, NodeID after, Point<double> position);
+
+    /** Removes a node from the signal chain and connects its neighbours to each other. */
+    void removeFromChain (NodeID node, NodeID before, NodeID after);
 
     AudioProcessorGraph::Node::Ptr getNodeForName (const String& name) const;
 
@@ -119,7 +126,10 @@ private:
     void addPluginCallback (std::unique_ptr<AudioPluginInstance>,
                             const String& error,
                             Point<double>,
-                            PluginDescriptionAndPreference::UseARA useARA);
+                            PluginDescriptionAndPreference::UseARA useARA,
+                            std::function<void (NodeID)> onAdded);
+    void connectAudio (NodeID source, NodeID destination);
+    void disconnectAudio (NodeID source, NodeID destination);
     void changeListenerCallback (ChangeBroadcaster*) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginGraph)

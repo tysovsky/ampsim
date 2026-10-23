@@ -52,24 +52,9 @@ void PluginComponent::mouseDown(const MouseEvent& e)
 
 void PluginComponent::mouseDrag(const MouseEvent& e)
 {
+    // Tiles sit in signal-chain order, so dragging doesn't move them; it just cancels a long press
     if (e.getDistanceFromDragStart() > 5)
         stopTimer();
-
-    if (!e.mods.isPopupMenu())
-    {
-        auto pos = originalPos + e.getOffsetFromDragStart();
-
-        if (getParentComponent() != nullptr)
-            pos = getParentComponent()->getLocalPoint(nullptr, pos);
-
-        pos += getLocalBounds().getCentre();
-
-        graph.setNodePosition(pluginID,
-            { pos.x / (double)getParentWidth(),
-                pos.y / (double)getParentHeight() });
-
-        panel.updateComponents();
-    }
 }
 
 void PluginComponent::mouseUp(const MouseEvent& e)
@@ -78,7 +63,7 @@ void PluginComponent::mouseUp(const MouseEvent& e)
 
     if (e.mouseWasDraggedSinceMouseDown())
     {
-        graph.setChangedFlag(true);
+        return;
     }
     else if (e.getNumberOfClicks() == 2)
     {
@@ -91,64 +76,27 @@ void PluginComponent::mouseUp(const MouseEvent& e)
     }
 }
 
-bool  PluginComponent::hitTest(int x, int y)
-{
-    for (auto* child : getChildren())
-        if (child->getBounds().contains(x, y))
-            return true;
-
-    return x >= 3 && x < getWidth() - 6 && y >= pinSize && y < getHeight() - pinSize;
-}
-
 void PluginComponent::paint(Graphics& g)
 {
-    auto boxArea = getLocalBounds().reduced(pinSize, 4);
+    auto tile = getLocalBounds().toFloat().reduced(4.0f);
     bool isBypassed = false;
 
     if (auto* f = graph.graph.getNodeForId(pluginID))
         isBypassed = f->isBypassed();
 
-    auto boxColour = findColour(isBypassed ? AppColourIds::bypassedNodeBackground
-                                           : TextEditor::backgroundColourId);
+    g.setColour(findColour(isBypassed ? AppColourIds::bypassedNodeBackground
+                                      : TextEditor::backgroundColourId));
+    g.fillRoundedRectangle(tile, 8.0f);
 
-    g.setColour(boxColour);
-    g.fillRect(boxArea.toFloat());
-
-    g.setColour(findColour(TextEditor::textColourId));
-    g.setFont(font);
-    g.drawFittedText(getName(), boxArea.reduced(labelPadding, 0), Justification::centred, 2);
-    if (isActive) {
-        g.drawRect(boxArea.toFloat(), 1.0f);
-    }
-}
-
-void PluginComponent::resized()
-{
-    if (auto f = graph.graph.getNodeForId(pluginID))
+    if (isActive)
     {
-        if (auto* processor = f->getProcessor())
-        {
-            for (auto* pin : pins)
-            {
-                const bool isInput = pin->isInput;
-                auto channelIndex = pin->pin.channelIndex;
-                int busIdx = 0;
-                processor->getOffsetInBusBufferForAbsoluteChannelIndex(isInput, channelIndex, busIdx);
-
-                const int total = isInput ? numIns : numOuts;
-                const int index = pin->pin.isMIDI() ? (total - 1) : channelIndex;
-
-                auto totalSpaces = static_cast<float> (total) + (static_cast<float> (jmax(0, processor->getBusCount(isInput) - 1)) * 0.5f);
-                auto indexPos = static_cast<float> (index) + (static_cast<float> (busIdx) * 0.5f);
-
-                pin->setBounds(
-                    pin->isInput ? 0 : (getWidth() - pinSize),
-                    proportionOfHeight((1.0f + indexPos) / (totalSpaces + 1.0f)) - pinSize / 2,
-                    pinSize,
-                    pinSize);
-            }
-        }
+        g.setColour(findColour(AppColourIds::signalPath));
+        g.drawRoundedRectangle(tile, 8.0f, 3.0f);
     }
+
+    g.setColour(findColour(TextEditor::textColourId).withMultipliedAlpha(isBypassed ? 0.5f : 1.0f));
+    g.setFont(font);
+    g.drawFittedText(getName(), tile.reduced((float)labelPadding).toNearestInt(), Justification::centred, 3);
 }
 
 Point<float> PluginComponent::getPinPos(int index, bool isInput) const
@@ -165,61 +113,9 @@ void PluginComponent::update()
     const AudioProcessorGraph::Node::Ptr f(graph.graph.getNodeForId(pluginID));
     jassert(f != nullptr);
 
-    auto& processor = *f->getProcessor();
-
-    numIns = processor.getTotalNumInputChannels();
-    if (processor.acceptsMidi())
-        ++numIns;
-
-    numOuts = processor.getTotalNumOutputChannels();
-    if (processor.producesMidi())
-        ++numOuts;
-
-    int w = 100 + pinSize;
-    int h = 100;
-
-    h = jmax(h, (jmax(numIns, numOuts) + 1) * pinSize);
-
-    // The label sits between the pins, so leave room for them on both sides
-    const int textWidth = font.getStringWidth(processor.getName());
-    w = jmax(w, 2 * (pinSize + labelPadding) + jmin(textWidth, 300));
-    if (textWidth > 300)
-        h = 100;
-
-    setSize(w, h);
-    setName(processor.getName());
-
-    {
-        auto p = graph.getNodePosition(pluginID);
-        setCentreRelative((float)p.x, (float)p.y);
-
-        // Positions are node centres, so a node near an edge would hang off the panel
-        if (auto* parent = getParentComponent())
-            if (!parent->getLocalBounds().isEmpty())
-                setBounds(getBounds().constrainedWithin(parent->getLocalBounds()));
-    }
-
-    if (numIns != numInputs || numOuts != numOutputs)
-    {
-        numInputs = numIns;
-        numOutputs = numOuts;
-
-        pins.clear();
-
-        for (int i = 0; i < processor.getTotalNumInputChannels(); ++i)
-            addAndMakeVisible(pins.add(new PinComponent(panel, { pluginID, i }, true)));
-
-        if (processor.acceptsMidi())
-            addAndMakeVisible(pins.add(new PinComponent(panel, { pluginID, AudioProcessorGraph::midiChannelIndex }, true)));
-
-        for (int i = 0; i < processor.getTotalNumOutputChannels(); ++i)
-            addAndMakeVisible(pins.add(new PinComponent(panel, { pluginID, i }, false)));
-
-        if (processor.producesMidi())
-            addAndMakeVisible(pins.add(new PinComponent(panel, { pluginID, AudioProcessorGraph::midiChannelIndex }, false)));
-
-        resized();
-    }
+    // The panel sizes and places the tiles along the chain, so only the name needs updating here
+    setName(f->getProcessor()->getName());
+    repaint();
 }
 
 AudioProcessor* PluginComponent::getProcessor() const
@@ -285,7 +181,7 @@ void PluginComponent::showPopupMenu()
             }
             case 0:
             {
-                graph.graph.removeNode(pluginID);
+                panel.removeFromChain(pluginID);
                 break;
             }
 

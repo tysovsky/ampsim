@@ -21,30 +21,37 @@ public:
     TouchLookAndFeel()              { getThemeManager().addLookAndFeel(*this); }
     ~TouchLookAndFeel() override    { getThemeManager().removeLookAndFeel(*this); }
 
-    PopupMenu::Options getOptionsForComboBoxPopupMenu(ComboBox& box, Label&) override
+    /** Options for a menu shown from a component: it opens inside the app window, with items
+        itemHeight tall, spread over enough columns to fit the window's height.
+    */
+    static PopupMenu::Options getMenuOptions(Component& target, int numItems, int itemHeight)
     {
         Component* parent = nullptr;
 
-        if (auto* window = box.findParentComponentOfClass<ResizableWindow>())
+        if (auto* window = target.findParentComponentOfClass<ResizableWindow>())
             parent = window->getContentComponent();
 
-        const int itemHeight = box.getHeight();
         const int availableHeight = parent != nullptr ? parent->getHeight()
-                                                      : Desktop::getInstance().getDisplays().getDisplayForRect(box.getScreenBounds())->userArea.getHeight();
+                                                      : Desktop::getInstance().getDisplays().getDisplayForRect(target.getScreenBounds())->userArea.getHeight();
 
         // Leave room for the menu's border and the margin JUCE keeps around it
         const int rowsPerColumn = jmax(1, (availableHeight - 32) / itemHeight);
-        const int numColumns = jmax(1, (box.getNumItems() + rowsPerColumn - 1) / rowsPerColumn);
+        const int numColumns = jmax(1, (numItems + rowsPerColumn - 1) / rowsPerColumn);
 
-        // Unlike the default options, don't ask for the selected item to be lined up with the box:
-        // JUCE does that by moving the list down, which pushes it off the bottom of the window
-        return PopupMenu::Options().withTargetComponent(&box)
+        return PopupMenu::Options().withTargetComponent(&target)
             .withParentComponent(parent)
-            .withInitiallySelectedItem(box.getSelectedId())
-            .withMinimumWidth(box.getWidth())
             .withStandardItemHeight(itemHeight)
             .withMinimumNumColumns(numColumns)
             .withMaximumNumColumns(numColumns);
+    }
+
+    PopupMenu::Options getOptionsForComboBoxPopupMenu(ComboBox& box, Label&) override
+    {
+        // Unlike the default options, don't ask for the selected item to be lined up with the box:
+        // JUCE does that by moving the list down, which pushes it off the bottom of the window
+        return getMenuOptions(box, box.getNumItems(), box.getHeight())
+            .withInitiallySelectedItem(box.getSelectedId())
+            .withMinimumWidth(box.getWidth());
     }
 
     Font getPopupMenuFont() override

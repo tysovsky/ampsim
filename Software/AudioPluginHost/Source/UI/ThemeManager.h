@@ -18,7 +18,8 @@ namespace AppColourIds
         pluginListSelectedRow,
         pluginListText,
         pluginListSelectedText,
-        bypassedNodeBackground
+        bypassedNodeBackground,
+        signalPath
     };
 }
 

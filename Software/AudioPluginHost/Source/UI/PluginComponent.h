@@ -20,9 +20,7 @@ public:
     void mouseDown(const MouseEvent& e) override;
     void mouseDrag(const MouseEvent& e) override;
     void mouseUp(const MouseEvent& e) override;
-    bool hitTest(int x, int y) override;
     void paint(Graphics& g) override;
-    void resized() override;
     Point<float> getPinPos(int index, bool isInput) const;
     void update();
     AudioProcessor* getProcessor() const;
@@ -65,7 +63,7 @@ private:
     int pinSize = 32;
     int labelPadding = 6;
     Point<int> originalPos;
-    Font font{ 13.0f, Font::bold };
+    Font font{ 16.0f, Font::bold };
     int numIns = 0, numOuts = 0;
     DropShadowEffect shadow;
     std::unique_ptr<PopupMenu> menu;

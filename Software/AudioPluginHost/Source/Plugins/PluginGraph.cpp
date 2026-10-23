@@ -80,23 +80,71 @@ AudioProcessorGraph::Node::Ptr PluginGraph::getNodeForName (const String& name) 
     return nullptr;
 }
 
-void PluginGraph::addPlugin (const PluginDescriptionAndPreference& desc, Point<double> pos)
+void PluginGraph::addPlugin (const PluginDescriptionAndPreference& desc, Point<double> pos,
+                             std::function<void (NodeID)> onAdded)
 {
     std::shared_ptr<ScopedDPIAwarenessDisabler> dpiDisabler = makeDPIAwarenessDisablerForPlugin (desc.pluginDescription);
 
     formatManager.createPluginInstanceAsync (desc.pluginDescription,
                                              graph.getSampleRate(),
                                              graph.getBlockSize(),
-                                             [this, pos, dpiDisabler, useARA = desc.useARA] (std::unique_ptr<AudioPluginInstance> instance, const String& error)
+                                             [this, pos, dpiDisabler, useARA = desc.useARA, onAdded] (std::unique_ptr<AudioPluginInstance> instance, const String& error)
                                              {
-                                                 addPluginCallback (std::move (instance), error, pos, useARA);
+                                                 addPluginCallback (std::move (instance), error, pos, useARA, onAdded);
                                              });
+}
+
+void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc, NodeID before, NodeID after, Point<double> position)
+{
+    addPlugin (desc, position, [this, before, after] (NodeID added)
+    {
+        disconnectAudio (before, after);
+        connectAudio (before, added);
+        connectAudio (added, after);
+    });
+}
+
+void PluginGraph::removeFromChain (NodeID node, NodeID before, NodeID after)
+{
+    graph.removeNode (node);
+    connectAudio (before, after);
+}
+
+void PluginGraph::connectAudio (NodeID source, NodeID destination)
+{
+    auto* sourceNode = graph.getNodeForId (source);
+    auto* destinationNode = graph.getNodeForId (destination);
+
+    if (sourceNode == nullptr || destinationNode == nullptr)
+        return;
+
+    const int numOutputs = sourceNode->getProcessor()->getTotalNumOutputChannels();
+    const int numInputs  = destinationNode->getProcessor()->getTotalNumInputChannels();
+
+    // Connect matching channels. A mono source feeds every input, so a guitar on a single
+    // channel reaches both sides of a stereo plugin.
+    for (int channel = 0; channel < numInputs; ++channel)
+    {
+        const int sourceChannel = numOutputs == 1 ? 0 : channel;
+
+        if (sourceChannel < numOutputs)
+            graph.addConnection ({ { source, sourceChannel }, { destination, channel } });
+    }
+}
+
+void PluginGraph::disconnectAudio (NodeID source, NodeID destination)
+{
+    for (auto& connection : graph.getConnections())
+        if (connection.source.nodeID == source && connection.destination.nodeID == destination
+             && ! connection.source.isMIDI())
+            graph.removeConnection (connection);
 }
 
 void PluginGraph::addPluginCallback (std::unique_ptr<AudioPluginInstance> instance,
                                      const String& error,
                                      Point<double> pos,
-                                     PluginDescriptionAndPreference::UseARA useARA)
+                                     PluginDescriptionAndPreference::UseARA useARA,
+                                     std::function<void (NodeID)> onAdded)
 {
     if (instance == nullptr)
     {
@@ -123,6 +171,9 @@ void PluginGraph::addPluginCallback (std::unique_ptr<AudioPluginInstance> instan
             node->properties.set ("y", pos.y);
             node->properties.set ("useARA", useARA == PluginDescriptionAndPreference::UseARA::yes);
             changed();
+
+            if (onAdded != nullptr)
+                onAdded (node->nodeID);
         }
     }
 }
