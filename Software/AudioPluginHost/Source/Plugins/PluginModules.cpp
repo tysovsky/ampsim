@@ -107,8 +107,23 @@ const PluginModule* PluginModuleSet::findModule (const String& name) const
 
 void PluginModuleSet::apply (AudioProcessor& processor, const PluginModule& module) const
 {
-    applySettings (processor, offSettings);
-    applySettings (processor, module.settings);
+    // Merge the module's settings over the "off" ones and set each parameter once. Setting the same
+    // parameter twice in a row (off, then back on) loses the second change in some plugins: Archetype
+    // Tim Henson X ended up with the module's own section switched off.
+    auto settings = offSettings;
+
+    for (const auto& setting : module.settings)
+    {
+        const auto existing = std::find_if (settings.begin(), settings.end(),
+                                            [&] (const auto& s) { return s.first == setting.first; });
+
+        if (existing != settings.end())
+            existing->second = setting.second;
+        else
+            settings.push_back (setting);
+    }
+
+    applySettings (processor, settings);
 }
 
 void PluginModuleSet::applySettings (AudioProcessor& processor, const PluginModule::Settings& settings)

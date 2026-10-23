@@ -35,7 +35,7 @@ public:
     const std::vector<PluginModule>& getModules() const noexcept { return modules; }
     const PluginModule* findModule (const String& name) const;
 
-    /** Switches everything off, then applies the module's settings. */
+    /** Switches everything off apart from what the module's settings switch on. */
     void apply (AudioProcessor&, const PluginModule&) const;
 
 private:
