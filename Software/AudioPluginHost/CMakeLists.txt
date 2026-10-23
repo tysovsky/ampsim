@@ -64,6 +64,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/IOConfigurationWindow.cpp
     Source/Plugins/InternalPlugins.cpp
     Source/Plugins/PluginGraph.cpp
+    Source/UI/AudioSettingsPopup.cpp
     Source/UI/ConnectorComponent.cpp
     Source/UI/GraphDocumentComponent.cpp
     Source/UI/GraphEditorPanel.cpp

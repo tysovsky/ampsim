@@ -5,6 +5,7 @@
 #include "GraphEditorPanel.h"
 #include "PluginComponent.h"
 #include "PluginControlsPanel.h"
+#include "AudioSettingsPopup.h"
 
 //==============================================================================
 /**
@@ -48,7 +49,8 @@ public:
     std::unique_ptr<MidiKeyboardComponent> keyboardComp;
 
     //==============================================================================
-    void showSidePanel(bool isSettingsPanel);
+    void showSettings();
+    void showPluginList();
     void hideLastSidePanel();
 
     BurgerMenuComponent burgerMenu;
@@ -74,14 +76,14 @@ private:
 
     ListBox pluginListBox;
 
-    SidePanel mobileSettingsSidePanel{ "Settings", 300, true };
     SidePanel pluginListSidePanel{ "Plugins", 250, false };
-    SidePanel* lastOpenedSidePanel = nullptr;
 
     PluginComponent* activePlugin = nullptr;
 
     std::unique_ptr<PluginControlsPanel> topPluginControlPanel;
     std::unique_ptr<PluginControlsPanel> bottomPluginControlPanel;
+
+    std::unique_ptr<AudioSettingsPopup> settingsPopup;
 
     //==============================================================================
     void changeListenerCallback(ChangeBroadcaster*) override;
@@ -91,7 +93,6 @@ private:
     void onNodeDeleted(PluginComponent* removedComponent) override;
 
     void init();
-    void checkAvailableWidth();
     void updateMidiOutput();
     void saveAudioDeviceState();
 

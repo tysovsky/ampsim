@@ -139,8 +139,11 @@ private:
         if (b == &saveButton) {
             owner.graph->saveAsync(false, false, nullptr);
         }
+        else if (b == &burgerButton) {
+            owner.showSettings();
+        }
         else {
-            owner.showSidePanel(b == &burgerButton);
+            owner.showPluginList();
         }
     }
 
@@ -267,10 +270,6 @@ void GraphDocumentComponent::init()
 
     pluginListSidePanel.setContent(&pluginListBox, false);
 
-    mobileSettingsSidePanel.setContent(new AudioDeviceSelectorComponent(deviceManager,
-        0, 2, 0, 2,
-        true, true, true, false));
-
 
     topPluginControlPanel.reset(new PluginControlsPanel(graphPanel.get(), true));
     bottomPluginControlPanel.reset(new PluginControlsPanel(graphPanel.get(), false));
@@ -278,7 +277,10 @@ void GraphDocumentComponent::init()
     addAndMakeVisible(bottomPluginControlPanel.get());
 
     addAndMakeVisible(pluginListSidePanel);
-    addAndMakeVisible(mobileSettingsSidePanel);
+
+    // Added last so it covers everything when shown
+    settingsPopup.reset(new AudioSettingsPopup(deviceManager));
+    addChildComponent(settingsPopup.get());
 }
 
 
@@ -321,9 +323,9 @@ void GraphDocumentComponent::resized()
         graphPanel->setBounds(r);
 
         topPluginControlPanel->setBounds(Rectangle<int>(0, 0, r.getWidth(), pluginControlsHeight));
-        bottomPluginControlPanel->setBounds(r.removeFromBottom(pluginControlsHeight));        
+        bottomPluginControlPanel->setBounds(r.removeFromBottom(pluginControlsHeight));
 
-        checkAvailableWidth();
+        settingsPopup->setBounds(getLocalBounds());
 }
 
 
@@ -373,36 +375,22 @@ void GraphDocumentComponent::itemDropped(const SourceDetails& details)
         details.localPosition);
 }
 
-void GraphDocumentComponent::showSidePanel(bool showSettingsPanel)
+void GraphDocumentComponent::showSettings()
 {
-    if (showSettingsPanel)
-        mobileSettingsSidePanel.showOrHide(true);
-    else
-        pluginListSidePanel.showOrHide(true);
+    settingsPopup->show();
+}
 
-    checkAvailableWidth();
-
-    lastOpenedSidePanel = showSettingsPanel ? &mobileSettingsSidePanel
-        : &pluginListSidePanel;
+void GraphDocumentComponent::showPluginList()
+{
+    pluginListSidePanel.showOrHide(true);
 }
 
 void GraphDocumentComponent::hideLastSidePanel()
 {
-    if (lastOpenedSidePanel != nullptr)
-        lastOpenedSidePanel->showOrHide(false);
-
-    if (mobileSettingsSidePanel.isPanelShowing())    lastOpenedSidePanel = &mobileSettingsSidePanel;
-    else if (pluginListSidePanel.isPanelShowing())        lastOpenedSidePanel = &pluginListSidePanel;
-    else                                                  lastOpenedSidePanel = nullptr;
-}
-
-void GraphDocumentComponent::checkAvailableWidth()
-{
-    if (mobileSettingsSidePanel.isPanelShowing() && pluginListSidePanel.isPanelShowing())
-    {
-        if (getWidth() - (mobileSettingsSidePanel.getWidth() + pluginListSidePanel.getWidth()) < 150)
-            hideLastSidePanel();
-    }
+    if (settingsPopup->isVisible())
+        settingsPopup->hide();
+    else
+        pluginListSidePanel.showOrHide(false);
 }
 
 void GraphDocumentComponent::setDoublePrecision(bool doublePrecision)
@@ -419,9 +407,9 @@ void GraphDocumentComponent::changeListenerCallback(ChangeBroadcaster*)
 {
     updateMidiOutput();
 
-    // Only save changes made from the settings panel. Automatic changes, like falling back to another
+    // Only save changes made from the settings popup. Automatic changes, like falling back to another
     // device because the saved one couldn't be opened at startup, mustn't overwrite the saved choice.
-    if (mobileSettingsSidePanel.isPanelShowing())
+    if (settingsPopup != nullptr && settingsPopup->isVisible())
         saveAudioDeviceState();
 }
 
