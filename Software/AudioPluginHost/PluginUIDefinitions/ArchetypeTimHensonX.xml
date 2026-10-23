@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Archetype Tim Henson X, split into modules that can each be added to the chain on their own.
+
+  Adding a module loads a full instance of the plugin, applies the <Off> settings to switch
+  everything off, then applies the module's own settings. Values are matched against the
+  plugin's own text for each step of the parameter ("On", "Roses", ...).
+
+  The plugin calls its amps Roses, Cherubs and Pink. Its factory presets use Roses for clean
+  and acoustic sounds, Cherubs for clean-to-crunch rhythm, and Pink for leads and high gain.
+-->
+<PluginControl name="Archetype Tim Henson X">
+  <Modules>
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+      <Set param="Active Pre FX Section" value="Off"/>
+      <Set param="Boost Active" value="Off"/>
+      <Set param="Compressor Active" value="Off"/>
+      <Set param="Overdrive Active" value="Off"/>
+      <Set param="Active Amp Section" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+      <Set param="Active Multivoicer Section" value="Off"/>
+      <Set param="Active EQ Section" value="Off"/>
+      <Set param="Active Post FX Section" value="Off"/>
+      <Set param="Chorus Active" value="Off"/>
+      <Set param="Delay Active" value="Off"/>
+      <Set param="Reverb Active" value="Off"/>
+    </Off>
+
+    <Group name="Amps">
+      <Module name="Roses (Clean)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Type" value="Roses"/>
+      </Module>
+      <Module name="Cherubs (Rhythm)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Type" value="Cherubs"/>
+      </Module>
+      <Module name="Pink (Lead)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Type" value="Pink"/>
+      </Module>
+    </Group>
+
+    <Group name="Pedals">
+      <Module name="Boost">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Boost Active" value="On"/>
+      </Module>
+      <Module name="Compressor">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Compressor Active" value="On"/>
+      </Module>
+      <Module name="Overdrive">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Overdrive Active" value="On"/>
+      </Module>
+      <Module name="Chorus">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Chorus Active" value="On"/>
+      </Module>
+      <Module name="Delay">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Delay Active" value="On"/>
+      </Module>
+      <Module name="Reverb">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Reverb Active" value="On"/>
+      </Module>
+    </Group>
+
+    <Module name="EQ">
+      <Set param="Active EQ Section" value="On"/>
+    </Module>
+  </Modules>
+</PluginControl>

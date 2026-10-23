@@ -143,6 +143,14 @@ void PluginComponent::paint(Graphics& g)
         nameArea = nameArea.withBottom(bar.getY());
     }
 
+    if (subtitle.isNotEmpty())
+    {
+        const auto subtitleArea = nameArea.removeFromBottom(nameArea.getHeight() * 0.35f);
+        g.setColour(textColour.withMultipliedAlpha(0.6f));
+        g.setFont(Font(12.0f));
+        g.drawFittedText(subtitle, subtitleArea.toNearestInt(), Justification::centredTop, 2);
+    }
+
     g.setColour(textColour);
     g.setFont(font);
     g.drawFittedText(getName(), nameArea.toNearestInt(), Justification::centred, 3);
@@ -204,8 +212,13 @@ void PluginComponent::update()
     const AudioProcessorGraph::Node::Ptr f(graph.graph.getNodeForId(pluginID));
     jassert(f != nullptr);
 
-    // The panel sizes and places the tiles along the chain, so only the name needs updating here
-    setName(f->getProcessor()->getName());
+    // The panel sizes and places the tiles along the chain, so only the name needs updating here.
+    // A plugin added as one of its modules shows the module's name, with the plugin's underneath.
+    const auto pluginName = f->getProcessor()->getName();
+    const auto moduleName = f->properties["module"].toString();
+
+    setName(moduleName.isNotEmpty() ? moduleName : pluginName);
+    subtitle = moduleName.isNotEmpty() ? pluginName : String();
     repaint();
 }
 

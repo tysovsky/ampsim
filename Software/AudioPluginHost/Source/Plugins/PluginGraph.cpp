@@ -96,10 +96,15 @@ void PluginGraph::addPlugin (const PluginDescriptionAndPreference& desc, Point<d
 
 void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc,
                                 std::vector<NodeID> sources, std::vector<NodeID> destinations,
-                                Point<double> position, bool inSeries)
+                                Point<double> position, bool inSeries,
+                                std::function<void (AudioProcessorGraph::Node&)> setUp)
 {
-    addPlugin (desc, position, [this, sources, destinations, inSeries, position] (NodeID added)
+    addPlugin (desc, position, [this, sources, destinations, inSeries, position, setUp] (NodeID added)
     {
+        if (setUp != nullptr)
+            if (auto* node = graph.getNodeForId (added))
+                setUp (*node);
+
         auto output = added;
 
         if (auto levelNode = graph.addNode (std::make_unique<LaneLevelProcessor>()))
@@ -423,6 +428,10 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) noexcep
         e->setAttribute ("y",        node->properties ["y"].toString());
         e->setAttribute ("useARA",   node->properties ["useARA"].toString());
 
+        // The part of the plugin this node was added as, e.g. one amp of an amp suite
+        if (node->properties.contains ("module"))
+            e->setAttribute ("module", node->properties ["module"].toString());
+
         for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
         {
             auto type = (PluginWindow::Type) i;
@@ -545,6 +554,9 @@ void PluginGraph::createNodeFromXml (const XmlElement& xml)
             node->properties.set ("x", xml.getDoubleAttribute ("x"));
             node->properties.set ("y", xml.getDoubleAttribute ("y"));
             node->properties.set ("useARA", xml.getBoolAttribute ("useARA"));
+
+            if (xml.hasAttribute ("module"))
+                node->properties.set ("module", xml.getStringAttribute ("module"));
 
             for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
             {

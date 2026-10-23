@@ -64,6 +64,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/IOConfigurationWindow.cpp
     Source/Plugins/InternalPlugins.cpp
     Source/Plugins/PluginGraph.cpp
+    Source/Plugins/PluginModules.cpp
     Source/UI/AudioSettingsPopup.cpp
     Source/UI/ConnectorComponent.cpp
     Source/UI/GraphDocumentComponent.cpp
@@ -117,6 +118,12 @@ if(WIN32 AND ASIO_SDK_DIR)
 elseif(WIN32)
     message(STATUS "ASIO_SDK_DIR not set: building without ASIO support")
 endif()
+
+# The app reads plugin definitions (control panels, modules) from a folder next to it
+add_custom_command(TARGET AudioPluginHost POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/PluginUIDefinitions"
+            "$<TARGET_FILE_DIR:AudioPluginHost>/PluginUIDefinitions")
 
 target_link_libraries(AudioPluginHost PRIVATE
     AudioPluginHostData

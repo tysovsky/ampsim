@@ -74,6 +74,7 @@ private:
     int labelPadding = 6;
     Point<int> originalPos;
     Font font{ 16.0f, Font::bold };
+    String subtitle;    // the plugin's name, when the tile shows one of its modules
     int numIns = 0, numOuts = 0;
     DropShadowEffect shadow;
     std::unique_ptr<PopupMenu> menu;

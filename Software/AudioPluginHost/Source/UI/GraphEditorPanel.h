@@ -26,6 +26,7 @@
 #pragma once
 
 #include "../Plugins/PluginGraph.h"
+#include "../Plugins/PluginModules.h"
 #include "PluginComponent.h"
 #include "ConnectorComponent.h"
 #include "PinComponent.h"
@@ -123,21 +124,30 @@ private:
         std::vector<AudioProcessorGraph::NodeID> getOutputs() const;
     };
 
+    /** What to add from the plugin picker: a whole plugin, or one module of it. */
+    struct PluginChoice
+    {
+        PluginDescriptionAndPreference description;
+        const PluginModuleSet* moduleSet = nullptr;
+        const PluginModule* module = nullptr;
+    };
+
     std::vector<Column> findColumns() const;
     bool isAudioConnected (const Column& sources, const Column& destinations) const;
     bool canAddParallel (size_t column) const;
     void layoutChain();
-    void showPluginPicker (Component& target, std::function<void (const PluginDescriptionAndPreference&)> onChosen);
-    void insertInSeries (const PluginDescriptionAndPreference&, size_t gap);
-    void insertInParallel (const PluginDescriptionAndPreference&, size_t column);
+    void showPluginPicker (Component& target, std::function<void (const PluginChoice&)> onChosen);
+    void insertInSeries (const PluginChoice&, size_t gap);
+    void insertInParallel (const PluginChoice&, size_t column);
 
     KnownPluginList& knownPlugins;
+    std::map<String, PluginModuleSet> moduleSets;   // by plugin name
     TouchLookAndFeel touchLookAndFeel;
     std::vector<Column> columns;
     std::vector<int> busX;    // x of the split/merge rail in each gap between columns
     std::vector<int> laneY;   // y of each column's empty parallel lane, or -1 if it has none
     OwnedArray<InsertButton> seriesButtons, parallelButtons;
-    Array<PluginDescription> pickerTypes;
+    std::vector<PluginChoice> pickerChoices;         // the open picker's items, by menu ID - 1
 
     OwnedArray<PluginComponent> nodes;
     OwnedArray<ConnectorComponent> connectors;

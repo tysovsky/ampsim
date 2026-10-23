@@ -74,11 +74,13 @@ public:
         every node in destinations. In series, the direct connections from sources to destinations
         are removed so the audio goes through the new plugin; otherwise it runs in parallel with
         whatever is already there. The level stage shares the plugin's position, which is how the
-        chain view pairs them up.
+        chain view pairs them up. If given, setUp is called with the new plugin's node before it's
+        connected, e.g. to configure it as a module.
     */
     void insertPlugin (const PluginDescriptionAndPreference&,
                        std::vector<NodeID> sources, std::vector<NodeID> destinations,
-                       Point<double> position, bool inSeries);
+                       Point<double> position, bool inSeries,
+                       std::function<void (AudioProcessorGraph::Node&)> setUp = nullptr);
 
     /** Removes nodes from the signal chain (a plugin and its level stage). If joinNeighbours is
         true, every source is then connected to every destination so the signal still flows past the gap.
