@@ -32,11 +32,15 @@
 
 namespace
 {
-    // Sizes along the chain at full scale; tiles and gaps shrink together when the chain gets long
+    // Sizes at full scale; tiles and gaps shrink together when the chain gets too long or tall
     constexpr int tileSize = 120;
     constexpr int gapWidth = 72;
+    constexpr int rowGap = 24;
     constexpr int insertButtonSize = 44;
     constexpr int chainMargin = 16;
+
+    // More rows than this won't fit legibly on the 400 px tall screen
+    constexpr size_t maxParallelPlugins = 3;
 }
 
 //==============================================================================
@@ -88,29 +92,79 @@ void GraphEditorPanel::paint (Graphics& g)
 {
     g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
 
-    // The signal path between the tiles: solid where audio is connected, dashed where it isn't
-    g.setColour (findColour (AppColourIds::signalPath));
+    // Solid where audio is connected, dashed where it isn't (or where nothing is plugged in yet)
+    const auto colour = findColour (AppColourIds::signalPath);
+    const float dashes[] = { 6.0f, 6.0f };
 
-    for (size_t i = 0; i + 1 < chain.size(); ++i)
+    const auto drawPath = [&] (Line<float> line, bool connected)
     {
-        auto* from = getComponentForPlugin (chain[i]);
-        auto* to = getComponentForPlugin (chain[i + 1]);
-
-        if (from == nullptr || to == nullptr)
-            continue;
-
-        const Line<float> line ((float) from->getRight(), (float) from->getBounds().getCentreY(),
-                                (float) to->getX(),       (float) to->getBounds().getCentreY());
-
-        if (isAudioConnected (chain[i], chain[i + 1]))
+        if (connected)
         {
+            g.setColour (colour);
             g.drawLine (line, 3.0f);
         }
         else
         {
-            const float dashes[] = { 6.0f, 6.0f };
+            g.setColour (colour.withAlpha (0.6f));
             g.drawDashedLine (line, dashes, numElementsInArray (dashes), 3.0f);
         }
+    };
+
+    const auto centreY = [this] (AudioProcessorGraph::NodeID id)
+    {
+        auto* comp = getComponentForPlugin (id);
+        return comp != nullptr ? (float) comp->getBounds().getCentreY() : 0.0f;
+    };
+
+    // Each column's empty lane, running between the rails either side of it
+    for (size_t c = 1; c + 1 < columns.size() && c < busX.size(); ++c)
+    {
+        if (laneY[c] < 0)
+            continue;
+
+        const auto y = (float) laneY[c];
+        const auto left = (float) busX[c - 1];
+        const auto right = (float) busX[c];
+        const auto lowestTile = centreY (columns[c].nodes.back());
+
+        drawPath ({ left, lowestTile, left, y }, false);
+        drawPath ({ left, y, right, y }, false);
+        drawPath ({ right, lowestTile, right, y }, false);
+    }
+
+    // The rail in each gap: every tile in the column before it feeds in, and every tile in the
+    // column after it is fed from it, so parallel plugins split and merge here
+    for (size_t gap = 0; gap < busX.size() && gap + 1 < columns.size(); ++gap)
+    {
+        const auto x = (float) busX[gap];
+        const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
+        auto top = std::numeric_limits<float>::max();
+        auto bottom = std::numeric_limits<float>::lowest();
+
+        for (auto id : columns[gap].nodes)
+        {
+            if (auto* comp = getComponentForPlugin (id))
+            {
+                const auto y = centreY (id);
+                drawPath ({ (float) comp->getRight(), y, x, y }, connected);
+                top = jmin (top, y);
+                bottom = jmax (bottom, y);
+            }
+        }
+
+        for (auto id : columns[gap + 1].nodes)
+        {
+            if (auto* comp = getComponentForPlugin (id))
+            {
+                const auto y = centreY (id);
+                drawPath ({ x, y, (float) comp->getX(), y }, connected);
+                top = jmin (top, y);
+                bottom = jmax (bottom, y);
+            }
+        }
+
+        if (bottom > top)
+            drawPath ({ x, top, x, bottom }, connected);
     }
 }
 
@@ -144,46 +198,61 @@ void GraphEditorPanel::mouseDrag (const MouseEvent& e)
 
 void GraphEditorPanel::createNewPlugin (const PluginDescriptionAndPreference& desc, Point<int> position)
 {
-    int nearestGap = -1;
+    size_t nearestGap = 0;
     int nearestDistance = std::numeric_limits<int>::max();
 
-    for (int i = 0; i < insertButtons.size(); ++i)
+    for (size_t gap = 0; gap < busX.size(); ++gap)
     {
-        const int distance = std::abs (insertButtons[i]->getBounds().getCentreX() - position.x);
+        const int distance = std::abs (busX[gap] - position.x);
 
         if (distance < nearestDistance)
         {
-            nearestGap = i;
+            nearestGap = gap;
             nearestDistance = distance;
         }
     }
 
-    if (nearestGap >= 0)
-        insertIntoChain (desc, nearestGap);
+    if (! busX.empty())
+        insertInSeries (desc, nearestGap);
 }
 
-void GraphEditorPanel::insertIntoChain (const PluginDescriptionAndPreference& desc, int gapIndex)
+void GraphEditorPanel::insertInSeries (const PluginDescriptionAndPreference& desc, size_t gap)
 {
-    const auto index = (size_t) gapIndex;
-
-    if (index + 1 >= chain.size())
+    if (gap + 1 >= columns.size())
         return;
 
-    // Halfway between its neighbours' positions, so it sorts between them
-    const auto position = (getChainPosition (index) + getChainPosition (index + 1)) / 2.0;
+    // A new column halfway between its neighbours' positions, so it sorts between them
+    const auto position = (columns[gap].position + columns[gap + 1].position) / 2.0;
 
-    graph.insertPlugin (desc, chain[index], chain[index + 1], { position, 0.5 });
+    graph.insertPlugin (desc, columns[gap].nodes, columns[gap + 1].nodes, { position, 0.0 }, true);
+}
+
+void GraphEditorPanel::insertInParallel (const PluginDescriptionAndPreference& desc, size_t column)
+{
+    if (! canAddParallel (column))
+        return;
+
+    // Same x as the rest of the column, and a row below its lowest plugin
+    const auto row = graph.getNodePosition (columns[column].nodes.back()).y + 1.0;
+
+    graph.insertPlugin (desc, columns[column - 1].nodes, columns[column + 1].nodes,
+                        { columns[column].position, row }, false);
 }
 
 void GraphEditorPanel::removeFromChain (AudioProcessorGraph::NodeID nodeID)
 {
-    const auto it = std::find (chain.begin(), chain.end(), nodeID);
-
     // The input and output nodes at either end stay put
-    if (it == chain.end() || it == chain.begin() || it + 1 == chain.end())
-        return;
+    for (size_t c = 1; c + 1 < columns.size(); ++c)
+    {
+        const auto& column = columns[c].nodes;
 
-    graph.removeFromChain (nodeID, *(it - 1), *(it + 1));
+        if (std::find (column.begin(), column.end(), nodeID) == column.end())
+            continue;
+
+        // If it was the last plugin in its column, join the columns either side so the signal still flows
+        graph.removeFromChain (nodeID, columns[c - 1].nodes, columns[c + 1].nodes, column.size() == 1);
+        return;
+    }
 }
 
 PluginComponent* GraphEditorPanel::getComponentForPlugin (AudioProcessorGraph::NodeID nodeID) const
@@ -259,7 +328,7 @@ void GraphEditorPanel::updateComponents()
     layoutChain();
 }
 
-std::vector<AudioProcessorGraph::NodeID> GraphEditorPanel::findChain() const
+std::vector<GraphEditorPanel::Column> GraphEditorPanel::findColumns() const
 {
     using IOProcessor = AudioProcessorGraph::AudioGraphIOProcessor;
 
@@ -276,14 +345,15 @@ std::vector<AudioProcessorGraph::NodeID> GraphEditorPanel::findChain() const
     auto* input = findIONode (IOProcessor::audioInputNode);
     auto* output = findIONode (IOProcessor::audioOutputNode);
 
-    std::vector<AudioProcessorGraph::NodeID> result;
+    std::vector<Column> result;
 
     if (input == nullptr || output == nullptr)
         return result;
 
-    // The plugins go between the input and output, ordered by their stored x position. The order
-    // doesn't come from the connections, so a plugin stays in place even when no audio reaches it
-    // (e.g. with no input device). The I/O nodes, including the MIDI ones, aren't plugins.
+    // The plugins go between the input and output, ordered by their stored x position. Plugins with
+    // the same x run in parallel, top to bottom by their stored y. The order doesn't come from the
+    // connections, so a plugin stays in place even when no audio reaches it (e.g. with no input
+    // device). The I/O nodes, including the MIDI ones, aren't plugins.
     std::vector<AudioProcessorGraph::Node*> plugins;
 
     for (auto* node : graph.graph.getNodes())
@@ -292,83 +362,158 @@ std::vector<AudioProcessorGraph::NodeID> GraphEditorPanel::findChain() const
 
     std::sort (plugins.begin(), plugins.end(), [] (const auto* a, const auto* b)
     {
-        const auto ax = (double) a->properties["x"];
-        const auto bx = (double) b->properties["x"];
-        return ax != bx ? ax < bx : a->nodeID.uid < b->nodeID.uid;
+        const auto ax = (double) a->properties["x"], bx = (double) b->properties["x"];
+        const auto ay = (double) a->properties["y"], by = (double) b->properties["y"];
+
+        if (ax != bx)   return ax < bx;
+        if (ay != by)   return ay < by;
+        return a->nodeID.uid < b->nodeID.uid;
     });
 
-    result.push_back (input->nodeID);
+    result.push_back ({ { input->nodeID }, 0.0 });
 
     for (auto* node : plugins)
-        result.push_back (node->nodeID);
+    {
+        const auto x = (double) node->properties["x"];
 
-    result.push_back (output->nodeID);
+        if (result.size() > 1 && result.back().position == x)
+            result.back().nodes.push_back (node->nodeID);
+        else
+            result.push_back ({ { node->nodeID }, x });
+    }
+
+    result.push_back ({ { output->nodeID }, 1.0 });
     return result;
 }
 
-double GraphEditorPanel::getChainPosition (size_t index) const
-{
-    // The input and output sit at either end; plugins in between keep their stored x position
-    if (index == 0)
-        return 0.0;
-
-    if (index + 1 >= chain.size())
-        return 1.0;
-
-    return graph.getNodePosition (chain[index]).x;
-}
-
-bool GraphEditorPanel::isAudioConnected (AudioProcessorGraph::NodeID source, AudioProcessorGraph::NodeID destination) const
+bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& destinations) const
 {
     for (auto& connection : graph.graph.getConnections())
-        if (connection.source.nodeID == source && connection.destination.nodeID == destination
-             && ! connection.source.isMIDI())
+    {
+        if (connection.source.isMIDI())
+            continue;
+
+        const auto& from = sources.nodes;
+        const auto& to = destinations.nodes;
+
+        if (std::find (from.begin(), from.end(), connection.source.nodeID) != from.end()
+             && std::find (to.begin(), to.end(), connection.destination.nodeID) != to.end())
             return true;
+    }
 
     return false;
 }
 
+bool GraphEditorPanel::canAddParallel (size_t column) const
+{
+    // Only plugin columns, not the input and output at either end
+    return column > 0 && column + 1 < columns.size()
+            && columns[column].nodes.size() < maxParallelPlugins;
+}
+
 void GraphEditorPanel::layoutChain()
 {
-    chain = findChain();
+    columns = findColumns();
 
+    // Hide the nodes that aren't part of the chain (the MIDI I/O nodes)
     for (auto* fc : nodes)
-        fc->setVisible (std::find (chain.begin(), chain.end(), fc->pluginID) != chain.end());
-
-    const int numTiles = (int) chain.size();
-    const int numGaps = jmax (0, numTiles - 1);
-
-    while (insertButtons.size() < numGaps)
     {
-        auto* button = insertButtons.add (new InsertButton());
-        const int gapIndex = insertButtons.size() - 1;
-        button->onClick = [this, gapIndex] { showPluginPicker (gapIndex); };
-        addAndMakeVisible (button);
+        bool inChain = false;
+
+        for (auto& column : columns)
+            inChain = inChain || std::find (column.nodes.begin(), column.nodes.end(), fc->pluginID) != column.nodes.end();
+
+        fc->setVisible (inChain);
     }
 
-    while (insertButtons.size() > numGaps)
-        insertButtons.removeLast();
+    const int numColumns = (int) columns.size();
+    const int numGaps = jmax (0, numColumns - 1);
 
-    // Shrink everything together when the chain is too long for the panel
-    const int fullWidth = numTiles * tileSize + numGaps * gapWidth;
-    const float scale = fullWidth > 0 ? jmin (1.0f, (float) (getWidth() - 2 * chainMargin) / (float) fullWidth) : 1.0f;
+    const auto resizeButtons = [this] (OwnedArray<InsertButton>& buttons, int size, std::function<void (int)> onClick)
+    {
+        while (buttons.size() < size)
+        {
+            auto* button = buttons.add (new InsertButton());
+            const int index = buttons.size() - 1;
+            button->onClick = [onClick, index] { onClick (index); };
+            addChildComponent (button);
+        }
+
+        while (buttons.size() > size)
+            buttons.removeLast();
+    };
+
+    resizeButtons (seriesButtons, numGaps, [this] (int gap)
+    {
+        showPluginPicker (*seriesButtons[gap], [this, gap] (const PluginDescriptionAndPreference& desc)
+        {
+            insertInSeries (desc, (size_t) gap);
+        });
+    });
+
+    resizeButtons (parallelButtons, numColumns, [this] (int column)
+    {
+        showPluginPicker (*parallelButtons[column], [this, column] (const PluginDescriptionAndPreference& desc)
+        {
+            insertInParallel (desc, (size_t) column);
+        });
+    });
+
+    // The height each column needs at full size: its tiles, plus its lane if it has room for more
+    int fullHeight = tileSize;
+
+    for (size_t c = 0; c < columns.size(); ++c)
+    {
+        const int numRows = (int) columns[c].nodes.size();
+        int height = numRows * tileSize + (numRows - 1) * rowGap;
+
+        if (canAddParallel (c))
+            height += rowGap + insertButtonSize;
+
+        fullHeight = jmax (fullHeight, height);
+    }
+
+    // Shrink everything together when the chain is too long or too tall for the panel
+    const int fullWidth = numColumns * tileSize + numGaps * gapWidth;
+    const float scale = jmin (1.0f,
+                              (float) (getWidth() - 2 * chainMargin) / (float) jmax (1, fullWidth),
+                              (float) (getHeight() - 2 * chainMargin) / (float) fullHeight);
     const int tile = roundToInt ((float) tileSize * scale);
     const int gap = roundToInt ((float) gapWidth * scale);
+    const int rowSpacing = roundToInt ((float) rowGap * scale);
     const int buttonSize = jmin (insertButtonSize, gap - 4);
 
-    int x = (getWidth() - (numTiles * tile + numGaps * gap)) / 2;
-    const int y = (getHeight() - tile) / 2;
+    int x = (getWidth() - (numColumns * tile + numGaps * gap)) / 2;
+    const int top = (getHeight() - roundToInt ((float) fullHeight * scale)) / 2;
 
-    for (int i = 0; i < numTiles; ++i)
+    busX.assign ((size_t) numGaps, 0);
+    laneY.assign ((size_t) numColumns, -1);
+
+    for (int c = 0; c < numColumns; ++c)
     {
-        if (auto* comp = getComponentForPlugin (chain[(size_t) i]))
-            comp->setBounds (x, y, tile, tile);
+        const auto& column = columns[(size_t) c];
+
+        for (size_t row = 0; row < column.nodes.size(); ++row)
+            if (auto* comp = getComponentForPlugin (column.nodes[row]))
+                comp->setBounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
+
+        const bool hasLane = canAddParallel ((size_t) c);
+        parallelButtons[c]->setVisible (hasLane);
+
+        if (hasLane)
+        {
+            const int laneTop = top + (int) column.nodes.size() * (tile + rowSpacing);
+            laneY[(size_t) c] = laneTop + buttonSize / 2;
+            parallelButtons[c]->setBounds (Rectangle<int> (x, laneTop, tile, buttonSize).withSizeKeepingCentre (buttonSize, buttonSize));
+        }
 
         x += tile;
 
-        if (i < numGaps)
+        if (c < numGaps)
         {
-            insertButtons[i]->setBounds (Rectangle<int> (x, y, gap, tile).withSizeKeepingCentre (buttonSize, buttonSize));
+            busX[(size_t) c] = x + gap / 2;
+            seriesButtons[c]->setBounds (Rectangle<int> (x, top, gap, tile).withSizeKeepingCentre (buttonSize, buttonSize));
+            seriesButtons[c]->setVisible (true);
             x += gap;
         }
     }
@@ -376,11 +521,8 @@ void GraphEditorPanel::layoutChain()
     repaint();
 }
 
-void GraphEditorPanel::showPluginPicker (int gapIndex)
+void GraphEditorPanel::showPluginPicker (Component& target, std::function<void (const PluginDescriptionAndPreference&)> onChosen)
 {
-    if (! isPositiveAndBelow (gapIndex, insertButtons.size()))
-        return;
-
     // Everything that's been scanned, apart from the input and output nodes
     pickerTypes.clear();
 
@@ -400,13 +542,12 @@ void GraphEditorPanel::showPluginPicker (int gapIndex)
     for (int i = 0; i < pickerTypes.size(); ++i)
         picker.addItem (i + 1, pickerTypes[i].name);
 
-    picker.showMenuAsync (TouchLookAndFeel::getMenuOptions (*insertButtons[gapIndex], jmax (1, pickerTypes.size()), insertButtonSize)
+    picker.showMenuAsync (TouchLookAndFeel::getMenuOptions (target, jmax (1, pickerTypes.size()), insertButtonSize)
                             .withMinimumWidth (300),
-                        [safeThis = SafePointer<GraphEditorPanel> (this), gapIndex] (int result)
+                        [safeThis = SafePointer<GraphEditorPanel> (this), onChosen] (int result)
                         {
                             if (safeThis != nullptr && isPositiveAndBelow (result - 1, safeThis->pickerTypes.size()))
-                                safeThis->insertIntoChain (PluginDescriptionAndPreference { safeThis->pickerTypes[result - 1] },
-                                                           gapIndex);
+                                onChosen (PluginDescriptionAndPreference { safeThis->pickerTypes[result - 1] });
                         });
 }
 

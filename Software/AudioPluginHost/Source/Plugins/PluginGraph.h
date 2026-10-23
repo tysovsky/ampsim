@@ -70,11 +70,19 @@ public:
     void addPlugin (const PluginDescriptionAndPreference&, Point<double>,
                     std::function<void (NodeID)> onAdded = nullptr);
 
-    /** Adds a plugin between two neighbouring nodes of the signal chain and routes the audio through it. */
-    void insertPlugin (const PluginDescriptionAndPreference&, NodeID before, NodeID after, Point<double> position);
+    /** Adds a plugin fed by every node in sources and feeding every node in destinations.
+        In series, the direct connections from sources to destinations are removed so the audio
+        goes through the new plugin; otherwise it runs in parallel with whatever is already there.
+    */
+    void insertPlugin (const PluginDescriptionAndPreference&,
+                       std::vector<NodeID> sources, std::vector<NodeID> destinations,
+                       Point<double> position, bool inSeries);
 
-    /** Removes a node from the signal chain and connects its neighbours to each other. */
-    void removeFromChain (NodeID node, NodeID before, NodeID after);
+    /** Removes a node from the signal chain. If joinNeighbours is true, every source is then
+        connected to every destination so the signal still flows past the gap.
+    */
+    void removeFromChain (NodeID node, const std::vector<NodeID>& sources,
+                          const std::vector<NodeID>& destinations, bool joinNeighbours);
 
     AudioProcessorGraph::Node::Ptr getNodeForName (const String& name) const;
 

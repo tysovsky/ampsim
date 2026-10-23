@@ -94,20 +94,35 @@ void PluginGraph::addPlugin (const PluginDescriptionAndPreference& desc, Point<d
                                              });
 }
 
-void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc, NodeID before, NodeID after, Point<double> position)
+void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc,
+                                std::vector<NodeID> sources, std::vector<NodeID> destinations,
+                                Point<double> position, bool inSeries)
 {
-    addPlugin (desc, position, [this, before, after] (NodeID added)
+    addPlugin (desc, position, [this, sources, destinations, inSeries] (NodeID added)
     {
-        disconnectAudio (before, after);
-        connectAudio (before, added);
-        connectAudio (added, after);
+        for (auto source : sources)
+        {
+            if (inSeries)
+                for (auto destination : destinations)
+                    disconnectAudio (source, destination);
+
+            connectAudio (source, added);
+        }
+
+        for (auto destination : destinations)
+            connectAudio (added, destination);
     });
 }
 
-void PluginGraph::removeFromChain (NodeID node, NodeID before, NodeID after)
+void PluginGraph::removeFromChain (NodeID node, const std::vector<NodeID>& sources,
+                                   const std::vector<NodeID>& destinations, bool joinNeighbours)
 {
     graph.removeNode (node);
-    connectAudio (before, after);
+
+    if (joinNeighbours)
+        for (auto source : sources)
+            for (auto destination : destinations)
+                connectAudio (source, destination);
 }
 
 void PluginGraph::connectAudio (NodeID source, NodeID destination)

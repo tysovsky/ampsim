@@ -38,7 +38,10 @@ class MainHostWindow;
 /**
     A panel that displays and edits a PluginGraph as a signal chain running left
     to right, from the audio input to the audio output, like a row of pedals.
-    A + button between each pair of nodes inserts a plugin at that point.
+
+    Each step of the chain is a column of plugins running in parallel. A + on the
+    main line inserts a new step in series; a + in the lane under a column adds a
+    plugin in parallel to that column.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -57,10 +60,10 @@ public:
     GraphEditorPanel (PluginGraph& graph, KnownPluginList& knownPlugins);
     ~GraphEditorPanel() override;
 
-    /** Inserts a plugin into the chain at the + button nearest to the given position. */
+    /** Inserts a plugin in series at the main-line + nearest to the given position. */
     void createNewPlugin (const PluginDescriptionAndPreference&, Point<int> position);
 
-    /** Removes a plugin from the chain, joining up the nodes either side of it. */
+    /** Removes a plugin from the chain, joining up the steps either side if it was the last in its column. */
     void removeFromChain (AudioProcessorGraph::NodeID);
 
     void paint (Graphics&) override;
@@ -106,17 +109,27 @@ public:
 private:
     class InsertButton;
 
-    std::vector<AudioProcessorGraph::NodeID> findChain() const;
-    double getChainPosition (size_t index) const;
-    void insertIntoChain (const PluginDescriptionAndPreference&, int gapIndex);
-    bool isAudioConnected (AudioProcessorGraph::NodeID source, AudioProcessorGraph::NodeID destination) const;
+    /** A step of the chain: one or more plugins running in parallel, or the input or output node. */
+    struct Column
+    {
+        std::vector<AudioProcessorGraph::NodeID> nodes;   // top to bottom
+        double position = 0.0;                            // the nodes' shared x, which orders the columns
+    };
+
+    std::vector<Column> findColumns() const;
+    bool isAudioConnected (const Column& sources, const Column& destinations) const;
+    bool canAddParallel (size_t column) const;
     void layoutChain();
-    void showPluginPicker (int gapIndex);
+    void showPluginPicker (Component& target, std::function<void (const PluginDescriptionAndPreference&)> onChosen);
+    void insertInSeries (const PluginDescriptionAndPreference&, size_t gap);
+    void insertInParallel (const PluginDescriptionAndPreference&, size_t column);
 
     KnownPluginList& knownPlugins;
     TouchLookAndFeel touchLookAndFeel;
-    std::vector<AudioProcessorGraph::NodeID> chain;
-    OwnedArray<InsertButton> insertButtons;
+    std::vector<Column> columns;
+    std::vector<int> busX;    // x of the split/merge rail in each gap between columns
+    std::vector<int> laneY;   // y of each column's empty parallel lane, or -1 if it has none
+    OwnedArray<InsertButton> seriesButtons, parallelButtons;
     Array<PluginDescription> pickerTypes;
 
     OwnedArray<PluginComponent> nodes;
