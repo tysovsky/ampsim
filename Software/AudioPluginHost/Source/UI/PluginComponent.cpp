@@ -1,5 +1,6 @@
 #include "PluginComponent.h"
 #include "GraphEditorPanel.h"
+#include "ThemeManager.h"
 
 #include "PluginControls/ControlXmlParser.h"
 
@@ -107,10 +108,8 @@ void PluginComponent::paint(Graphics& g)
     if (auto* f = graph.graph.getNodeForId(pluginID))
         isBypassed = f->isBypassed();
 
-    auto boxColour = findColour(TextEditor::backgroundColourId);
-
-    if (isBypassed)
-        boxColour = boxColour.brighter();
+    auto boxColour = findColour(isBypassed ? AppColourIds::bypassedNodeBackground
+                                           : TextEditor::backgroundColourId);
 
     g.setColour(boxColour);
     g.fillRect(boxArea.toFloat());

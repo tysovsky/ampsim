@@ -1,6 +1,7 @@
 #include "GraphDocumentComponent.h"
 #include "../Plugins/InternalPlugins.h"
 #include "MainHostWindow.h"
+#include "ThemeManager.h"
 
 //==============================================================================
 struct GraphDocumentComponent::TooltipBar final : public Component,
@@ -104,15 +105,23 @@ public:
         addAndMakeVisible(saveButton);
 
         setOpaque(true);
+        lookAndFeelChanged();
     }
 
 private:
     void paint(Graphics& g) override
     {
-        auto titleBarBackgroundColour = getLookAndFeel().findColour(ResizableWindow::backgroundColourId).darker();
-
-        g.setColour(titleBarBackgroundColour);
+        g.setColour(findColour(AppColourIds::titleBarBackground));
         g.fillRect(getLocalBounds());
+    }
+
+    void lookAndFeelChanged() override
+    {
+        const auto icon = findColour(AppColourIds::titleBarIcon);
+        const auto pressed = findColour(AppColourIds::titleBarIconPressed);
+
+        burgerButton.setColours(icon, icon, pressed);
+        pluginButton.setColours(icon, icon, pressed);
     }
 
     void resized() override
@@ -182,10 +191,11 @@ struct GraphDocumentComponent::PluginListBoxModel final : public ListBoxModel,
     void paintListBoxItem(int rowNumber, Graphics& g,
         int width, int height, bool rowIsSelected) override
     {
-        g.fillAll(rowIsSelected ? Colour(0xff42A2C8)
-            : Colour(0xff263238));
+        g.fillAll(owner.findColour(rowIsSelected ? AppColourIds::pluginListSelectedRow
+                                                 : AppColourIds::pluginListRow));
 
-        g.setColour(rowIsSelected ? Colours::black : Colours::white);
+        g.setColour(owner.findColour(rowIsSelected ? AppColourIds::pluginListSelectedText
+                                                   : AppColourIds::pluginListText));
 
         if (rowNumber < knownPlugins.getNumTypes())
             g.drawFittedText(knownPlugins.getTypes()[rowNumber].name, { 0, 0, width, height - 2 }, Justification::centred, 1);

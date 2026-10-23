@@ -72,6 +72,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/UI/PinComponent.cpp
     Source/UI/PluginComponent.cpp
     Source/UI/PluginControlsPanel.cpp
+    Source/UI/ThemeManager.cpp
     Source/UI/PluginControls/ArchetypeGojiraa.cpp
     Source/UI/PluginControls/ControlXmlParser.cpp
     Source/UI/PluginControls/DarkGlass.cpp

@@ -25,6 +25,7 @@
 
 #include <JuceHeader.h>
 #include "UI/MainHostWindow.h"
+#include "UI/ThemeManager.h"
 #include "Plugins/InternalPlugins.h"
 
 #if ! (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_VST3 || JUCE_PLUGINHOST_AU)
@@ -154,6 +155,8 @@ public:
         appProperties.reset (new ApplicationProperties());
         appProperties->setStorageParameters (options);
 
+        themeManager.loadSavedTheme();
+
         mainWindow.reset (new MainHostWindow());
 
         commandManager.registerAllCommandsForTarget (this);
@@ -241,6 +244,7 @@ public:
 
     ApplicationCommandManager commandManager;
     std::unique_ptr<ApplicationProperties> appProperties;
+    ThemeManager themeManager;
 
 private:
     std::unique_ptr<MainHostWindow> mainWindow;
@@ -251,6 +255,7 @@ static PluginHostApp& getApp()                    { return *dynamic_cast<PluginH
 
 ApplicationProperties& getAppProperties()         { return *getApp().appProperties; }
 ApplicationCommandManager& getCommandManager()    { return getApp().commandManager; }
+ThemeManager& getThemeManager()                   { return getApp().themeManager; }
 
 bool isOnTouchDevice()
 {

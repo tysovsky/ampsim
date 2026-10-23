@@ -89,6 +89,7 @@ public:
     //==============================================================================
     void closeButtonPressed() override;
     void parentSizeChanged() override;
+    void lookAndFeelChanged() override;
     BorderSize<int> getBorderThickness() override;
     void changeListenerCallback (ChangeBroadcaster*) override;
 

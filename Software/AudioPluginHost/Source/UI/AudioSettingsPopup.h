@@ -5,8 +5,9 @@
 
 //==============================================================================
 /**
-    A popup covering the window for choosing the audio and MIDI devices, laid out
-    for the 1280x400 touchscreen: two columns of large dropdowns and buttons.
+    A popup covering the window for choosing the audio and MIDI devices and the
+    colour theme, laid out for the 1280x400 touchscreen: two columns of large
+    dropdowns and buttons.
 */
 class AudioSettingsPopup final : public Component,
     private ChangeListener
@@ -44,10 +45,10 @@ private:
     TextButton doneButton{ "Done" };
 
     Label deviceTypeLabel, outputLabel, inputLabel, sampleRateLabel, bufferSizeLabel,
-          outputChannelsLabel, inputChannelsLabel, midiInputsLabel, midiOutputLabel, noMidiInputsLabel;
+          outputChannelsLabel, inputChannelsLabel, midiInputsLabel, midiOutputLabel, noMidiInputsLabel, themeLabel;
 
     ComboBox deviceTypeBox, outputDeviceBox, inputDeviceBox, sampleRateBox, bufferSizeBox,
-             outputChannelsBox, inputChannelsBox, midiOutputBox;
+             outputChannelsBox, inputChannelsBox, midiOutputBox, themeBox;
 
     TextButton testButton{ "Test" }, controlPanelButton{ "Driver settings" };
     std::unique_ptr<InputLevelMeter> inputLevelMeter;

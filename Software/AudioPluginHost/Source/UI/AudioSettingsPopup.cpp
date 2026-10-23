@@ -95,7 +95,7 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
 {
     setLookAndFeel(&lookAndFeel);
 
-    titleLabel.setText("Audio & MIDI Settings", dontSendNotification);
+    titleLabel.setText("Settings", dontSendNotification);
     titleLabel.setFont(Font(24.0f, Font::bold));
     addAndMakeVisible(titleLabel);
 
@@ -112,7 +112,8 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
         { &inputChannelsLabel, "Input channels" },
         { &midiInputsLabel, "MIDI inputs" },
         { &midiOutputLabel, "MIDI output" },
-        { &noMidiInputsLabel, "No MIDI inputs found" }
+        { &noMidiInputsLabel, "No MIDI inputs found" },
+        { &themeLabel, "Theme" }
     };
 
     for (auto& [label, text] : labels)
@@ -124,11 +125,18 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
     }
 
     for (auto* box : { &deviceTypeBox, &outputDeviceBox, &inputDeviceBox, &sampleRateBox, &bufferSizeBox,
-                       &outputChannelsBox, &inputChannelsBox, &midiOutputBox })
+                       &outputChannelsBox, &inputChannelsBox, &midiOutputBox, &themeBox })
     {
         box->setTextWhenNoChoicesAvailable("None available");
         addAndMakeVisible(box);
     }
+
+    const auto& themes = getThemeManager().getThemes();
+
+    for (int i = 0; i < (int)themes.size(); ++i)
+        themeBox.addItem(themes[(size_t)i].name, i + 1);
+
+    themeBox.onChange = [this] { getThemeManager().setTheme(themeBox.getSelectedId() - 1); };
 
     deviceTypeBox.onChange = [this] { deviceTypeChosen(); };
     outputDeviceBox.onChange = [this] { deviceChosen(false); };
@@ -220,7 +228,7 @@ void AudioSettingsPopup::paint(Graphics& g)
     g.setColour(background);
     g.fillRoundedRectangle(panel, 10.0f);
 
-    g.setColour(background.brighter(0.4f));
+    g.setColour(findColour(ComboBox::outlineColourId));
     g.drawRoundedRectangle(panel, 10.0f, 1.5f);
     g.fillRect(panel.getX() + padding, panel.getY() + headerHeight, panel.getWidth() - 2 * padding, 1.0f);
 }
@@ -268,6 +276,7 @@ void AudioSettingsPopup::resized()
     layoutMidiInputButtons(midiInputArea);
 
     midiOutputBox.setBounds(nextRow(right, midiOutputLabel));
+    themeBox.setBounds(nextRow(right, themeLabel));
 }
 
 void AudioSettingsPopup::layoutMidiInputButtons(Rectangle<int> area)
@@ -364,6 +373,8 @@ void AudioSettingsPopup::updateControls()
 
     testButton.setEnabled(device != nullptr);
     controlPanelButton.setVisible(device != nullptr && device->hasControlPanel());
+
+    themeBox.setSelectedId(getThemeManager().getCurrentThemeIndex() + 1, dontSendNotification);
 
     updateMidiControls();
 }

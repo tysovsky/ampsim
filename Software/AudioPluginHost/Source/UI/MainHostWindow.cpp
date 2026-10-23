@@ -389,6 +389,14 @@ void MainHostWindow::parentSizeChanged()
     fillCurrentDisplay();
 }
 
+void MainHostWindow::lookAndFeelChanged()
+{
+    DocumentWindow::lookAndFeelChanged();
+
+    // The background colour was fixed when the window was created, so follow theme changes
+    setBackgroundColour (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+}
+
 BorderSize<int> MainHostWindow::getBorderThickness()
 {
     return {};

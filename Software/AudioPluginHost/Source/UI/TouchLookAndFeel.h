@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "ThemeManager.h"
 
 //==============================================================================
 /**
@@ -15,6 +16,10 @@ class TouchLookAndFeel : public LookAndFeel_V4
 {
 public:
     static constexpr float fontSize = 20.0f;
+
+    // Follow the app's theme like the default LookAndFeel does
+    TouchLookAndFeel()              { getThemeManager().addLookAndFeel(*this); }
+    ~TouchLookAndFeel() override    { getThemeManager().removeLookAndFeel(*this); }
 
     PopupMenu::Options getOptionsForComboBoxPopupMenu(ComboBox& box, Label&) override
     {
