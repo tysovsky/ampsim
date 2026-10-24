@@ -1,8 +1,12 @@
 #include "PluginPicker.h"
+#include "MainHostWindow.h"
 #include "ThemeManager.h"
 
 namespace
 {
+    // The setting that remembers whether the first page was last by plugin or by type
+    const char* const groupingKey = "pluginPickerGrouping";
+
     constexpr int margin = 12;
     constexpr int padding = 16;
     constexpr int headerHeight = 52;
@@ -177,8 +181,11 @@ void PluginPicker::show (Component& parent, std::function<void (const PluginChoi
 
     setBounds (parent.getLocalBounds());
 
-    byPluginButton.setToggleState (true, dontSendNotification);
-    setGrouping (Grouping::byPlugin);
+    // It opens grouped the way it was last left
+    const auto grouping = getAppProperties().getUserSettings()->getValue (groupingKey) == "byType" ? Grouping::byType
+                                                                                                   : Grouping::byPlugin;
+    (grouping == Grouping::byType ? byTypeButton : byPluginButton).setToggleState (true, dontSendNotification);
+    setGrouping (grouping);
 
     setVisible (true);
     toFront (true);
@@ -294,6 +301,10 @@ void PluginPicker::layoutTiles()
 //==============================================================================
 void PluginPicker::setGrouping (Grouping grouping)
 {
+    auto* settings = getAppProperties().getUserSettings();
+    settings->setValue (groupingKey, grouping == Grouping::byType ? "byType" : "byPlugin");
+    settings->saveIfNeeded();
+
     pages.clear();
     pages.push_back (grouping == Grouping::byPlugin ? makePluginsPage() : makeTypesPage());
     showCurrentPage();
@@ -391,10 +402,8 @@ PluginPicker::Page PluginPicker::makePluginsPage()
 
 PluginPicker::Page PluginPicker::makePluginPage (const PluginDescription& type, const PluginModuleSet& set)
 {
-    // The whole plugin, then its modules, grouped as in its definition file
+    // Its modules, grouped as in its definition file. The whole plugin can't be added, only its parts.
     Page page { type.name, {} };
-    page.entries.push_back (makeChoiceEntry ("Full plugin", {}, BlockIcon::suite, { PluginDescriptionAndPreference { type } }));
-
     StringArray groups;
 
     for (auto& module : set.getModules())
@@ -433,7 +442,7 @@ PluginPicker::Page PluginPicker::makeGroupPage (const PluginDescription& type, c
 
 PluginPicker::Page PluginPicker::makeTypesPage()
 {
-    // A page for each kind of block there's at least one of, with whole plugins last
+    // A page for each kind of block there's at least one of, with plugins that aren't split into modules last
     Page page { "Add to chain", {} };
 
     for (auto icon : { BlockIcon::amp, BlockIcon::pedal, BlockIcon::cab, BlockIcon::eq,
@@ -454,12 +463,13 @@ PluginPicker::Page PluginPicker::makeTypePage (BlockIcon icon)
     Page page { getBlockIconCategory (icon), {} };
     const auto types = getPluginTypes();
 
-    // Whole plugins go with the plain plugin icon, along with any modules that don't say what kind they are
+    // Plugins that aren't split into modules go with the plain plugin icon, along with any modules
+    // that don't say what kind they are. A plugin with modules is only added as its parts.
     if (icon == BlockIcon::plugin)
         for (auto& type : types)
-            page.entries.push_back (makeChoiceEntry (type.name, type.manufacturerName,
-                                                     findModuleSet (type) != nullptr ? BlockIcon::suite : BlockIcon::plugin,
-                                                     { PluginDescriptionAndPreference { type } }));
+            if (findModuleSet (type) == nullptr)
+                page.entries.push_back (makeChoiceEntry (type.name, type.manufacturerName, BlockIcon::plugin,
+                                                         { PluginDescriptionAndPreference { type } }));
 
     // Every plugin's modules of this kind, labelled with the plugin they're from
     for (auto& type : types)

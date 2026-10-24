@@ -22,8 +22,10 @@ struct PluginChoice
 
     By default it starts with a tile for each plugin. A plugin with modules (one
     with a definition file) opens a page of its groups, such as Amps and Pedals,
-    and a group opens a page of its modules. "By type" starts from the kinds of
-    block instead, such as every amp from every plugin.
+    and a group opens a page of its modules; such a plugin is only added as one
+    of its modules, never whole. "By type" starts from the kinds of block
+    instead, such as every amp from every plugin. It opens either way, as it
+    was last left.
 */
 class PluginPicker final : public Component
 {
@@ -31,7 +33,8 @@ public:
     PluginPicker (KnownPluginList&, const std::map<String, PluginModuleSet>& moduleSets);
     ~PluginPicker() override;
 
-    /** Opens over the whole of a component at the first page, and calls onChosen with what's picked. */
+    /** Opens over the whole of a component at the first page, by plugin or by type as last left,
+        and calls onChosen with what's picked. */
     void show (Component& parent, std::function<void (const PluginChoice&)> onChosen);
     void hide();
 
