@@ -59,6 +59,7 @@ juce_generate_juce_header(AudioPluginHost)
 
 target_sources(AudioPluginHost PRIVATE
     Source/HostStartup.cpp
+    Source/Audio/Recorder.cpp
     Source/Plugins/ARAPlugin.cpp
     Source/Plugins/IOConfigurationWindow.cpp
     Source/Plugins/InternalPlugins.cpp
@@ -75,6 +76,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/UI/PinComponent.cpp
     Source/UI/PluginComponent.cpp
     Source/UI/PluginPicker.cpp
+    Source/UI/RecordingsPopup.cpp
     Source/UI/ThemeManager.cpp)
 
 juce_add_binary_data(AudioPluginHostData SOURCES

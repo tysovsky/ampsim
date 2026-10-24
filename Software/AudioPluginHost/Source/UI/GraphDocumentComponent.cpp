@@ -41,6 +41,58 @@ struct GraphDocumentComponent::TooltipBar final : public Component,
 };
 
 //==============================================================================
+// A red dot to start recording; while recording, a square to stop, and how long it's been going
+class RecordButton final : public Button,
+                           private Timer
+{
+public:
+    explicit RecordButton(Recorder& r) : Button("Record"), recorder(r)
+    {
+        setWantsKeyboardFocus(false);
+        startTimerHz(4);
+    }
+
+    void paintButton(Graphics& g, bool, bool isButtonDown) override
+    {
+        const bool isRecording = recorder.isRecording();
+        const auto red = Colour(0xffe0342c);
+        auto area = getLocalBounds().toFloat();
+
+        g.setColour(isRecording ? red : findColour(TextButton::buttonColourId).darker(isButtonDown ? 0.1f : 0.0f));
+        g.fillRoundedRectangle(area, 6.0f);
+
+        auto icon = area.reduced(12.0f, 0.0f).removeFromLeft(18.0f).withSizeKeepingCentre(18.0f, 18.0f);
+        auto textArea = area.withTrimmedLeft(icon.getRight() + 8.0f - area.getX()).withTrimmedRight(8.0f);
+
+        g.setColour(isRecording ? Colours::white : red);
+
+        if (isRecording)
+            g.fillRoundedRectangle(icon.reduced(2.0f), 2.0f);
+        else
+            g.fillEllipse(icon);
+
+        const auto seconds = (int) recorder.getRecordingLength();
+
+        g.setColour(isRecording ? Colours::white : findColour(TextButton::textColourOffId));
+        g.setFont(Font(18.0f, isRecording ? Font::bold : Font::plain));
+        g.drawText(isRecording ? String(seconds / 60) + ":" + String(seconds % 60).paddedLeft('0', 2) : String("Record"),
+                   textArea, Justification::centredLeft);
+    }
+
+private:
+    void timerCallback() override
+    {
+        if (recorder.isRecording() || wasRecording)
+            repaint();
+
+        wasRecording = recorder.isRecording();
+    }
+
+    Recorder& recorder;
+    bool wasRecording = false;
+};
+
+//==============================================================================
 // This is the title shown on top
 class GraphDocumentComponent::TitleBarComponent final : public Component,
     private Button::Listener
@@ -63,21 +115,6 @@ public:
                 200,65,0,0,240,65,0,0,192,65,98,0,0,240,65,2,43,183,65,254,212,232,65,0,0,176,65,0,0,224,65,0,0,176,
                 65,99,101,0,0 };
 
-        static const unsigned char pluginListPathData[]
-            = { 110,109,193,202,222,64,80,50,21,64,108,0,0,48,65,0,0,0,0,108,160,154,112,65,80,50,21,64,108,0,0,48,65,80,
-                50,149,64,108,193,202,222,64,80,50,21,64,99,109,0,0,192,64,251,220,127,64,108,160,154,32,65,165,135,202,
-                64,108,160,154,32,65,250,220,47,65,108,0,0,192,64,102,144,10,65,108,0,0,192,64,251,220,127,64,99,109,0,0,
-                128,65,251,220,127,64,108,0,0,128,65,103,144,10,65,108,96,101,63,65,251,220,47,65,108,96,101,63,65,166,135,
-                202,64,108,0,0,128,65,251,220,127,64,99,109,96,101,79,65,148,76,69,65,108,0,0,136,65,0,0,32,65,108,80,
-                77,168,65,148,76,69,65,108,0,0,136,65,40,153,106,65,108,96,101,79,65,148,76,69,65,99,109,0,0,64,65,63,247,
-                95,65,108,80,77,128,65,233,161,130,65,108,80,77,128,65,125,238,167,65,108,0,0,64,65,51,72,149,65,108,0,0,64,
-                65,63,247,95,65,99,109,0,0,176,65,63,247,95,65,108,0,0,176,65,51,72,149,65,108,176,178,143,65,125,238,167,65,
-                108,176,178,143,65,233,161,130,65,108,0,0,176,65,63,247,95,65,99,109,12,86,118,63,148,76,69,65,108,0,0,160,
-                64,0,0,32,65,108,159,154,16,65,148,76,69,65,108,0,0,160,64,40,153,106,65,108,12,86,118,63,148,76,69,65,99,
-                109,0,0,0,0,63,247,95,65,108,62,53,129,64,233,161,130,65,108,62,53,129,64,125,238,167,65,108,0,0,0,0,51,
-                72,149,65,108,0,0,0,0,63,247,95,65,99,109,0,0,32,65,63,247,95,65,108,0,0,32,65,51,72,149,65,108,193,202,190,
-                64,125,238,167,65,108,193,202,190,64,233,161,130,65,108,0,0,32,65,63,247,95,65,99,101,0,0 };
-
         {
             Path p;
             p.loadPathFromData(burgerMenuPathData, sizeof(burgerMenuPathData));
@@ -85,9 +122,13 @@ public:
         }
 
         {
+            // A play triangle and a list, for the recordings
             Path p;
-            p.loadPathFromData(pluginListPathData, sizeof(pluginListPathData));
-            pluginButton.setShape(p, true, true, false);
+            p.addTriangle(0.0f, 0.0f, 0.0f, 10.0f, 8.0f, 5.0f);
+            p.addRectangle(12.0f, 3.5f, 20.0f, 3.0f);
+            p.addRectangle(0.0f, 14.0f, 32.0f, 3.0f);
+            p.addRectangle(0.0f, 24.0f, 32.0f, 3.0f);
+            recordingsButton.setShape(p, true, true, false);
         }
 
         burgerButton.addListener(this);
@@ -98,8 +139,11 @@ public:
         addChainButton.onClick = [this] { owner.graphPanel->addChain(); };
         addAndMakeVisible(addChainButton);
 
-        pluginButton.addListener(this);
-        addAndMakeVisible(pluginButton);
+        recordButton.onClick = [this] { owner.toggleRecording(); };
+        addAndMakeVisible(recordButton);
+
+        recordingsButton.addListener(this);
+        addAndMakeVisible(recordingsButton);
 
         titleLabel.setJustificationType(Justification::centredLeft);
         addAndMakeVisible(titleLabel);
@@ -121,7 +165,7 @@ private:
         const auto pressed = findColour(AppColourIds::titleBarIconPressed);
 
         burgerButton.setColours(icon, icon, pressed);
-        pluginButton.setColours(icon, icon, pressed);
+        recordingsButton.setColours(icon, icon, pressed);
     }
 
     void resized() override
@@ -134,8 +178,10 @@ private:
         burgerButton.setBounds(r.removeFromLeft(h + 16));
         burgerButton.setBorderSize(BorderSize<int>(h / 4));
 
-        pluginButton.setBounds(r.removeFromRight(h + 16));
-        pluginButton.setBorderSize(BorderSize<int>(h / 4));
+        recordingsButton.setBounds(r.removeFromRight(h + 16));
+        recordingsButton.setBorderSize(BorderSize<int>(h / 4));
+
+        recordButton.setBounds(r.removeFromRight(140).reduced(0, 4));
 
         addChainButton.setBounds(r.withSizeKeepingCentre(160, h - 8));
 
@@ -149,7 +195,7 @@ private:
             owner.showSettings();
         }
         else {
-            owner.showPluginList();
+            owner.showRecordings();
         }
     }
 
@@ -157,8 +203,9 @@ private:
 
     Label titleLabel{ "titleLabel", "Studio" };
     ShapeButton burgerButton{ "burgerButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
-    ShapeButton pluginButton{ "pluginButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
+    ShapeButton recordingsButton{ "recordingsButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
     TextButton addChainButton{ "Add chain" };
+    RecordButton recordButton{ owner.recorder };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TitleBarComponent)
 };
@@ -244,7 +291,7 @@ GraphDocumentComponent::GraphDocumentComponent(AudioPluginFormatManager& fm,
     init();
 
     deviceManager.addChangeListener(graphPanel.get());
-    deviceManager.addAudioCallback(&graphPlayer);
+    deviceManager.addAudioCallback(&recorder);
     deviceManager.addMidiInputDeviceCallback({}, &graphPlayer.getMidiMessageCollector());
     deviceManager.addChangeListener(this);
 }
@@ -292,6 +339,9 @@ void GraphDocumentComponent::init()
     // Added last so it covers everything when shown
     settingsPopup.reset(new AudioSettingsPopup(deviceManager));
     addChildComponent(settingsPopup.get());
+
+    recordingsPopup.reset(new RecordingsPopup(recorder));
+    addChildComponent(recordingsPopup.get());
 }
 
 
@@ -346,6 +396,7 @@ void GraphDocumentComponent::resized()
         }
 
         settingsPopup->setBounds(getLocalBounds());
+        recordingsPopup->setBounds(getLocalBounds());
 }
 
 
@@ -356,7 +407,8 @@ void GraphDocumentComponent::createNewPlugin(const PluginDescriptionAndPreferenc
 
 void GraphDocumentComponent::releaseGraph()
 {
-    deviceManager.removeAudioCallback(&graphPlayer);
+    recorder.stop();
+    deviceManager.removeAudioCallback(&recorder);
     deviceManager.removeMidiInputDeviceCallback({}, &graphPlayer.getMidiMessageCollector());
 
     if (graphPanel != nullptr)
@@ -411,9 +463,51 @@ void GraphDocumentComponent::showPluginList()
     pluginListSidePanel.showOrHide(true);
 }
 
+void GraphDocumentComponent::showRecordings()
+{
+    recordingsPopup->show();
+}
+
+void GraphDocumentComponent::toggleRecording()
+{
+    if (recorder.isRecording())
+    {
+        recorder.stop();
+        return;
+    }
+
+    // A recording for each output, or pair, that one of the chains' output blocks sends to
+    std::vector<Recorder::Output> outputs;
+
+    for (auto* node : graph->graph.getNodes())
+    {
+        if (auto* output = dynamic_cast<ChainOutputProcessor*>(node->getProcessor()))
+        {
+            const auto [first, second] = output->getChosenChannels();
+            const auto sameOutput = [first = first, second = second](const Recorder::Output& o) { return o.first == first && o.second == second; };
+
+            if (std::none_of(outputs.begin(), outputs.end(), sameOutput))
+                outputs.push_back({ first, second, output->getBlockName() });
+        }
+    }
+
+    std::sort(outputs.begin(), outputs.end(), [](const auto& a, const auto& b)
+    {
+        return a.first != b.first ? a.first < b.first : a.second < b.second;
+    });
+
+    if (! recorder.start(outputs))
+        messageBox = AlertWindow::showScopedAsync(MessageBoxOptions::makeOptionsOk(MessageBoxIconType::WarningIcon,
+                                                                                    "Nothing to record",
+                                                                                    "The audio device isn't running, or it has none of the outputs the chains send to."),
+                                                  nullptr);
+}
+
 void GraphDocumentComponent::hideLastSidePanel()
 {
-    if (settingsPopup->isVisible())
+    if (recordingsPopup->isVisible())
+        recordingsPopup->hide();
+    else if (settingsPopup->isVisible())
         settingsPopup->hide();
     else
         pluginListSidePanel.showOrHide(false);

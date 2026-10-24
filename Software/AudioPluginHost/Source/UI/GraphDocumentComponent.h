@@ -6,6 +6,8 @@
 #include "PluginComponent.h"
 #include "BlockControlsPanel.h"
 #include "AudioSettingsPopup.h"
+#include "RecordingsPopup.h"
+#include "../Audio/Recorder.h"
 
 //==============================================================================
 /**
@@ -51,7 +53,11 @@ public:
     //==============================================================================
     void showSettings();
     void showPluginList();
+    void showRecordings();
     void hideLastSidePanel();
+
+    /** Starts recording each output the chains send to, or stops recording. */
+    void toggleRecording();
 
     BurgerMenuComponent burgerMenu;
 
@@ -61,6 +67,7 @@ private:
     KnownPluginList& pluginList;
 
     AudioProcessorPlayer graphPlayer;
+    Recorder recorder{ graphPlayer };   // plays the graph to the device, recording what it sends
     MidiKeyboardState keyState;
     MidiOutput* midiOutput = nullptr;
 
@@ -86,6 +93,8 @@ private:
     Viewport chainViewport;
 
     std::unique_ptr<AudioSettingsPopup> settingsPopup;
+    std::unique_ptr<RecordingsPopup> recordingsPopup;
+    ScopedMessageBox messageBox;
 
     //==============================================================================
     void changeListenerCallback(ChangeBroadcaster*) override;
