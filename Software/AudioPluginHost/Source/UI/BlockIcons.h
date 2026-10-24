@@ -29,3 +29,6 @@ String getBlockIconCategory (BlockIcon);
 
 /** Draws an icon as line art, fitted into the centre of an area. */
 void drawBlockIcon (Graphics&, BlockIcon, Rectangle<float> area, Colour);
+
+/** Draws a bin, for deleting things, in the same way. */
+void drawBinIcon (Graphics&, Rectangle<float> area, Colour);

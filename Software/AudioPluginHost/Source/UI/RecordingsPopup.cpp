@@ -1,4 +1,5 @@
 #include "RecordingsPopup.h"
+#include "BlockIcons.h"
 #include "ThemeManager.h"
 
 namespace
@@ -165,27 +166,9 @@ public:
     void paintButton (Graphics& g, bool, bool isButtonDown) override
     {
         const auto size = jmin (24.0f, (float) jmin (getWidth(), getHeight()));
-        const auto box = getLocalBounds().toFloat().withSizeKeepingCentre (size, size);
-        const auto point = [&] (float x, float y) { return box.getRelativePoint (x, y); };
 
-        Path bin;
-        bin.startNewSubPath (point (0.08f, 0.22f));
-        bin.lineTo (point (0.92f, 0.22f));
-        bin.startNewSubPath (point (0.36f, 0.22f));
-        bin.lineTo (point (0.40f, 0.06f));
-        bin.lineTo (point (0.60f, 0.06f));
-        bin.lineTo (point (0.64f, 0.22f));
-        bin.startNewSubPath (point (0.18f, 0.22f));
-        bin.lineTo (point (0.24f, 0.94f));
-        bin.lineTo (point (0.76f, 0.94f));
-        bin.lineTo (point (0.82f, 0.22f));
-        bin.startNewSubPath (point (0.42f, 0.38f));
-        bin.lineTo (point (0.42f, 0.78f));
-        bin.startNewSubPath (point (0.58f, 0.38f));
-        bin.lineTo (point (0.58f, 0.78f));
-
-        g.setColour (isButtonDown ? Colour (0xffe0342c) : findColour (Label::textColourId).withAlpha (0.7f));
-        g.strokePath (bin, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+        drawBinIcon (g, getLocalBounds().toFloat().withSizeKeepingCentre (size, size),
+                     isButtonDown ? Colour (0xffe0342c) : findColour (Label::textColourId).withAlpha (0.7f));
     }
 };
 

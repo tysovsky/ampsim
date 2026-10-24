@@ -48,6 +48,10 @@ namespace
 
     // A dragged block goes to the + nearest the finger, if it's this close to one
     constexpr float dropDistance = 60.0f;
+
+    // Let go further than this from every tile (and further than dropDistance from every +), a
+    // dragged block is deleted
+    constexpr int emptySpaceMargin = 24;
 }
 
 //==============================================================================
@@ -948,6 +952,11 @@ void GraphEditorPanel::layoutChains()
                 chain.laneY[(size_t) c] = laneTop + buttonSize / 2;
                 laneButton->setBounds (Rectangle<int> (x, laneTop, tile, buttonSize).withSizeKeepingCentre (buttonSize, buttonSize));
             }
+            else
+            {
+                // Out of the way, so where it last was doesn't count as somewhere (see isEmptySpace())
+                laneButton->setBounds ({});
+            }
 
             x += tile;
 
@@ -1097,6 +1106,9 @@ void GraphEditorPanel::dragBlock (PluginComponent& tile, Point<int> finger, Poin
 
     showDropTargets (draggedBlock, litTarget);
 
+    isOverEmptySpace = ! litTarget.has_value() && isEmptySpace (finger);
+    tile.setWillBeDeleted (isOverEmptySpace);
+
     // Near the edge of the view, it scrolls to show more of the chains, if there are more
     if (auto* viewport = findParentComponentOfClass<Viewport>())
     {
@@ -1111,10 +1123,29 @@ void GraphEditorPanel::dropBlock (PluginComponent& tile)
 {
     const auto nodeID = draggedBlock;
     const auto target = litTarget;
+    const bool deletes = isOverEmptySpace && nodeID == tile.pluginID;
 
     draggedBlock = {};
     litTarget.reset();
+    isOverEmptySpace = false;
     tile.setAlpha (1.0f);
+    tile.setWillBeDeleted (false);
+
+    if (deletes)
+    {
+        // The tile goes when the chain view's next updated, not now, as this is called from the
+        // tile's own mouseUp(). It's hidden until then.
+        tile.setVisible (false);
+        removeFromChain (nodeID);
+
+        MessageManager::callAsync ([safeThis = SafePointer<GraphEditorPanel> (this)]
+        {
+            if (safeThis != nullptr)
+                safeThis->updateComponents();
+        });
+
+        return;
+    }
 
     if (nodeID == tile.pluginID && target.has_value())
         moveBlock (nodeID, *target);
@@ -1184,6 +1215,24 @@ void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
 
     graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, isAlone,
                        point.sources, point.destinations, point.inSeries);
+}
+
+bool GraphEditorPanel::isEmptySpace (Point<int> position) const
+{
+    // Clear of every tile, the dragged block's own place included...
+    for (auto* comp : nodes)
+        if (comp->isVisible() && getTileBounds (comp->pluginID).expanded (emptySpaceMargin).contains (position))
+            return false;
+
+    // ...and of every +, even those hidden because the dragged block can't go there (such as either
+    // side of where it is), so letting go near where it was puts it back
+    for (auto* buttons : { &seriesButtons, &parallelButtons })
+        for (auto* button : *buttons)
+            if (! button->getBounds().isEmpty()
+                 && button->getBounds().getCentre().toFloat().getDistanceFrom (position.toFloat()) < dropDistance)
+                return false;
+
+    return true;
 }
 
 Rectangle<int> GraphEditorPanel::getTileBounds (NodeID nodeID) const

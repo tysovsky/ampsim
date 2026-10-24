@@ -246,3 +246,30 @@ void drawBlockIcon (Graphics& g, BlockIcon icon, Rectangle<float> area, Colour c
         }
     }
 }
+
+void drawBinIcon (Graphics& g, Rectangle<float> area, Colour colour)
+{
+    const auto size = jmin (area.getWidth(), area.getHeight());
+    const auto box = area.withSizeKeepingCentre (size, size);
+    const auto point = [&] (float x, float y) { return box.getRelativePoint (x, y); };
+
+    // The lid and its handle, the can, and two lines down it
+    Path bin;
+    bin.startNewSubPath (point (0.08f, 0.22f));
+    bin.lineTo (point (0.92f, 0.22f));
+    bin.startNewSubPath (point (0.36f, 0.22f));
+    bin.lineTo (point (0.40f, 0.06f));
+    bin.lineTo (point (0.60f, 0.06f));
+    bin.lineTo (point (0.64f, 0.22f));
+    bin.startNewSubPath (point (0.18f, 0.22f));
+    bin.lineTo (point (0.24f, 0.94f));
+    bin.lineTo (point (0.76f, 0.94f));
+    bin.lineTo (point (0.82f, 0.22f));
+    bin.startNewSubPath (point (0.42f, 0.38f));
+    bin.lineTo (point (0.42f, 0.78f));
+    bin.startNewSubPath (point (0.58f, 0.38f));
+    bin.lineTo (point (0.58f, 0.78f));
+
+    g.setColour (colour);
+    g.strokePath (bin, PathStrokeType (jmax (2.0f, size * 0.08f), PathStrokeType::curved, PathStrokeType::rounded));
+}

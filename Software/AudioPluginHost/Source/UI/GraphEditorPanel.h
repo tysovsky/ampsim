@@ -47,7 +47,8 @@ class ChainEndProcessor;
     Each step of a chain is a column of blocks running in parallel. A + on a chain's
     main line inserts a new step in series; a + in the lane under a column adds a
     plugin in parallel to that column, or another input or output at either end.
-    A plugin's tile can be dragged onto a + to move the plugin there, as it is.
+    A plugin's tile can be dragged onto a + to move the plugin there, as it is, or
+    off into empty space to delete it.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -88,11 +89,14 @@ public:
 
     /** Called as a block's tile is dragged, with the finger's position in this panel and where on
         the tile it took hold. The tile follows the finger, only the +s it can go to are shown, and
-        the one it would go to if it were let go now is lit up.
+        the one it would go to if it were let go now is lit up. Over empty space, away from every
+        tile and +, the tile shows that letting go there would delete the block.
     */
     void dragBlock (PluginComponent&, Point<int> finger, Point<int> grabOffset);
 
-    /** Called when a dragged tile is let go: the block moves to the lit-up +, or the tile goes back. */
+    /** Called when a dragged tile is let go: the block moves to the lit-up +, is deleted over empty
+        space, or otherwise goes back.
+    */
     void dropBlock (PluginComponent&);
 
     /** Lets a name be typed for one of the chains' inputs or outputs, on the on-screen keyboard. */
@@ -222,6 +226,7 @@ private:
     bool canDrop (NodeID, const DropTarget&) const;
     void showDropTargets (NodeID, std::optional<DropTarget> lit);
     void moveBlock (NodeID, const DropTarget&);
+    bool isEmptySpace (Point<int>) const;
     Rectangle<int> getTileBounds (NodeID) const;
 
     KnownPluginList& knownPlugins;
@@ -234,10 +239,12 @@ private:
     bool isUpdatingComponents = false, needsAnotherUpdate = false;
     std::vector<std::pair<size_t, size_t>> seriesTargets, parallelTargets;  // each button's chain, and gap or column
 
-    // The block being dragged, where its tile was laid out, and the + it would be dropped on now
+    // The block being dragged, where its tile was laid out, and the + it would be dropped on now,
+    // or whether it's over empty space, where it would be deleted
     NodeID draggedBlock;
     Rectangle<int> draggedBlockHome;
     std::optional<DropTarget> litTarget;
+    bool isOverEmptySpace = false;
 
     OwnedArray<PluginComponent> nodes;
     OwnedArray<ConnectorComponent> connectors;

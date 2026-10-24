@@ -126,8 +126,12 @@ void PluginComponent::paint(Graphics& g)
     if (auto* f = graph.graph.getNodeForId(pluginID))
         isBypassed = f->isBypassed();
 
-    g.setColour(findColour(isBypassed ? AppColourIds::bypassedNodeBackground
-                                      : TextEditor::backgroundColourId));
+    // Red, the colour the recordings list deletes in, while letting go of it would delete it
+    const Colour deleteColour(0xffe0342c);
+
+    g.setColour(willBeDeleted ? deleteColour
+                              : findColour(isBypassed ? AppColourIds::bypassedNodeBackground
+                                                      : TextEditor::backgroundColourId));
     g.fillRoundedRectangle(tile, 8.0f);
 
     if (isActive)
@@ -161,8 +165,12 @@ void PluginComponent::paint(Graphics& g)
     // space on small tiles, and the plugin's name only goes underneath on tiles without a mix bar.
     const auto iconColour = findColour(AppColourIds::signalPath).withMultipliedAlpha(isBypassed ? 0.5f : 1.0f);
     const bool showSubtitle = subtitle.isNotEmpty() && nameArea.getHeight() >= 90.0f;
+    const auto iconArea = nameArea.removeFromTop(jmin(40.0f, nameArea.getHeight() - 24.0f)).reduced(0.0f, 2.0f);
 
-    drawBlockIcon(g, icon, nameArea.removeFromTop(jmin(40.0f, nameArea.getHeight() - 24.0f)).reduced(0.0f, 2.0f), iconColour);
+    if (willBeDeleted)
+        drawBinIcon(g, iconArea, Colours::white);
+    else
+        drawBlockIcon(g, icon, iconArea, iconColour);
 
     if (showSubtitle)
     {
@@ -191,6 +199,15 @@ void PluginComponent::setLaneLevel(AudioProcessorGraph::Node::Ptr levelNode)
         level->addListener(this);
 
     repaint();
+}
+
+void PluginComponent::setWillBeDeleted(bool shouldShowDeleting)
+{
+    if (willBeDeleted != shouldShowDeleting)
+    {
+        willBeDeleted = shouldShowDeleting;
+        repaint();
+    }
 }
 
 AudioParameterFloat* PluginComponent::getLaneLevelParameter() const

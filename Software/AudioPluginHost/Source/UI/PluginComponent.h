@@ -39,6 +39,9 @@ public:
     /** Shows a mix bar for the lane level stage that follows this plugin, or hides it if nullptr. */
     void setLaneLevel(AudioProcessorGraph::Node::Ptr levelNode);
 
+    /** Shows the tile red with a bin, while it's dragged where letting go would delete it. */
+    void setWillBeDeleted(bool shouldShowDeleting);
+
     /** The plugin's name, when the tile shows one of its modules. */
     const String& getSubtitle() const noexcept { return subtitle; }
 
@@ -63,7 +66,7 @@ private:
 
     // Dragging a plugin's tile further than this picks it up, to drop on a + somewhere else
     static constexpr int dragDistance = 12;
-    bool canBeDragged = false, isBeingDragged = false;
+    bool canBeDragged = false, isBeingDragged = false, willBeDeleted = false;
     Point<int> grabOffset;     // where on the tile it was picked up
 
     GraphEditorPanel& panel;
