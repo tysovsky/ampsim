@@ -4,7 +4,7 @@
 #include "../Plugins/PluginGraph.h"
 #include "GraphEditorPanel.h"
 #include "PluginComponent.h"
-#include "PluginControlsPanel.h"
+#include "BlockControlsPanel.h"
 #include "AudioSettingsPopup.h"
 
 //==============================================================================
@@ -80,8 +80,7 @@ private:
 
     PluginComponent* activePlugin = nullptr;
 
-    std::unique_ptr<PluginControlsPanel> topPluginControlPanel;
-    std::unique_ptr<PluginControlsPanel> bottomPluginControlPanel;
+    std::unique_ptr<BlockControlsPanel> blockControls;
 
     std::unique_ptr<AudioSettingsPopup> settingsPopup;
 
@@ -93,6 +92,7 @@ private:
     void onNodeDeleted(PluginComponent* removedComponent) override;
 
     void init();
+    void showBlockControls();
     void updateMidiOutput();
     void saveAudioDeviceState();
 

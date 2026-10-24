@@ -39,11 +39,7 @@ FetchContent_Declare(JUCE
     URL https://github.com/juce-framework/JUCE/archive/refs/tags/7.0.12.tar.gz
     URL_HASH SHA256=94e3b35e1990cd67f59736bb5e1eff1cfd9590b16fea82696f309a8f59452434)
 
-FetchContent_Declare(pugixml
-    URL https://github.com/zeux/pugixml/releases/download/v1.14/pugixml-1.14.tar.gz
-    URL_HASH SHA256=2f10e276870c64b1db6809050a75e11a897a8d7456c4be5c6b2e35a11168a015)
-
-FetchContent_MakeAvailable(JUCE pugixml)
+FetchContent_MakeAvailable(JUCE)
 
 # ASIO support needs the Steinberg ASIO SDK, which isn't redistributed here.
 # Download it from Steinberg and configure with -DASIO_SDK_DIR=<path to the SDK>.
@@ -69,20 +65,17 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/PluginGraph.cpp
     Source/Plugins/PluginModules.cpp
     Source/UI/AudioSettingsPopup.cpp
+    Source/UI/BlockControlsPanel.cpp
     Source/UI/BlockIcons.cpp
     Source/UI/ConnectorComponent.cpp
+    Source/UI/ControllerConfig.cpp
     Source/UI/GraphDocumentComponent.cpp
     Source/UI/GraphEditorPanel.cpp
     Source/UI/MainHostWindow.cpp
     Source/UI/PinComponent.cpp
     Source/UI/PluginComponent.cpp
-    Source/UI/PluginControlsPanel.cpp
     Source/UI/PluginPicker.cpp
-    Source/UI/ThemeManager.cpp
-    Source/UI/PluginControls/ArchetypeGojiraa.cpp
-    Source/UI/PluginControls/ControlXmlParser.cpp
-    Source/UI/PluginControls/DarkGlass.cpp
-    Source/UI/PluginControls/PluginControl.cpp)
+    Source/UI/ThemeManager.cpp)
 
 juce_add_binary_data(AudioPluginHostData SOURCES
     ${juce_SOURCE_DIR}/examples/Assets/cassette_recorder.wav
@@ -132,7 +125,6 @@ add_custom_command(TARGET AudioPluginHost POST_BUILD
 
 target_link_libraries(AudioPluginHost PRIVATE
     AudioPluginHostData
-    pugixml::pugixml
     juce::juce_audio_utils
     juce::juce_cryptography
     juce::juce_dsp

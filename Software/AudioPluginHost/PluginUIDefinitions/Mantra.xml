@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Mantra, a vocal chain rather than a guitar rig: pitch correction and harmonies, a gate,
+  de-esser, compressor and limiter, an EQ, Sculpt (which matches the voice to a target tone
+  after analysing it) and saturation, then delay, reverb, modulation and a doubler.
+
+  Every effect has its own on/off switch, which is what the modules use. The plugin also has
+  switches for its Correction and Post FX sections; which effects each one covers isn't clear
+  from its parameters, so they're left on, and each module just turns its own effect on.
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Mantra">
+  <!-- The whole plugin: a switch for each effect -->
+  <Controls>
+    <Switch param="Tune Active" label="Tune"/>
+    <Switch param="Gate Active" label="Gate"/>
+    <Switch param="De-esser Active" label="De-ess"/>
+    <Switch param="EQ Active" label="EQ"/>
+    <Switch param="Compressor Active" label="Comp"/>
+    <Switch param="Saturation Active" label="Saturate"/>
+    <Switch param="Active Harmonies" label="Harmony"/>
+    <Switch param="Delay Active" label="Delay"/>
+    <Switch param="Reverb Active" label="Reverb"/>
+    <Switch param="Modulation Active" label="Mod"/>
+    <Switch param="Doubler Active" label="Double"/>
+  </Controls>
+
+  <Modules>
+    <Off>
+      <Set param="Active Correction" value="On"/>
+      <Set param="Active Post FX" value="On"/>
+      <Set param="Limiter Active" value="Off"/>
+      <Set param="Tune Active" value="Off"/>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Sculpt Active" value="Off"/>
+      <Set param="De-esser Active" value="Off"/>
+      <Set param="EQ Active" value="Off"/>
+      <Set param="Compressor Active" value="Off"/>
+      <Set param="Saturation Active" value="Off"/>
+      <Set param="Active Harmonies" value="Off"/>
+      <Set param="Delay Active" value="Off"/>
+      <Set param="Reverb Active" value="Off"/>
+      <Set param="Modulation Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+    </Off>
+
+    <Group name="Pitch" icon="pitch">
+      <Module name="Pitch Correction">
+        <Set param="Tune Active" value="On"/>
+        <Controls>
+          <Switch param="Tune Active" label="Tune" switch="1"/>
+          <Choice param="Key Root Note" label="Key" style="list"/>
+          <Choice param="Scale" label="Scale" style="list"/>
+          <Knob param="Tune Attack" label="Speed" knob="1"/>
+          <Knob param="Tune Tolerance" label="Tolerance" knob="2"/>
+          <Knob param="Tune Humanize" label="Humanize" knob="3"/>
+          <Knob param="Tune Formant" label="Formant" knob="4"/>
+          <Knob param="Tune Pitch Semitones" label="Shift" knob="5"/>
+          <Switch param="Tune Retune" label="Retune"/>
+        </Controls>
+      </Module>
+      <Module name="Harmonies">
+        <Set param="Active Harmonies" value="On"/>
+        <Controls>
+          <Switch param="Active Harmonies" label="Harmony" switch="1"/>
+          <Choice param="Key Root Note" label="Key" style="list"/>
+          <Choice param="Scale" label="Scale" style="list"/>
+          <Knob param="Harmonies Level" label="Level" knob="1"/>
+          <Knob param="Harmonies Width" label="Width" knob="2"/>
+          <Knob param="Harmonies Pitch Randomization" label="Pitch Var" knob="3"/>
+          <Knob param="Harmonies Time Randomization" label="Time Var" knob="4"/>
+          <Knob param="Harmonies DI Level" label="Dry" knob="5"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <Group name="Dynamics" icon="dynamics">
+      <Module name="Gate">
+        <Set param="Gate Active" value="On"/>
+        <Controls>
+          <Switch param="Gate Active" label="Gate" switch="1"/>
+          <Knob param="Gate Opening" label="Open" knob="1"/>
+          <Knob param="Gate Closing" label="Close" knob="2"/>
+          <Knob param="Gate Hold Time" label="Hold" knob="3"/>
+        </Controls>
+      </Module>
+      <Module name="De-esser">
+        <Set param="De-esser Active" value="On"/>
+        <Controls>
+          <Switch param="De-esser Active" label="De-ess" switch="1"/>
+          <Knob param="De-esser Amount" label="Amount" knob="1"/>
+          <Knob param="De-esser Low Cut" label="From" knob="2"/>
+          <Knob param="De-esser High Cut" label="To" knob="3"/>
+          <Choice param="De-esser Intensity" label="Intensity"/>
+        </Controls>
+      </Module>
+      <Module name="Compressor">
+        <Set param="Compressor Active" value="On"/>
+        <Controls>
+          <Switch param="Compressor Active" label="Comp" switch="1"/>
+          <Choice param="Compressor Type" label="Type"/>
+          <Show param="Compressor Type" value="Tube">
+            <Choice param="Compressor Tube Mode" label="Mode"/>
+            <Knob param="Compressor Tube Compression" label="Compress" knob="1"/>
+            <Knob param="Compressor Tube Gain" label="Gain" knob="2"/>
+            <Knob param="Compressor Tube Output" label="Output" knob="3"/>
+          </Show>
+          <Show param="Compressor Type" value="Stress">
+            <Knob param="Compressor Stress Compression" label="Compress" knob="1"/>
+            <Choice param="Compressor Stress Ratio" label="Ratio"/>
+            <Choice param="Compressor Stress Time" label="Time"/>
+            <Knob param="Compressor Stress Output" label="Output" knob="3"/>
+          </Show>
+          <Show param="Compressor Type" value="Multi">
+            <Knob param="Compressor Multi Compression" label="Compress" knob="1"/>
+            <Choice param="Compressor Multi Preset" label="Style" style="list"/>
+            <Choice param="Compressor Multi Time" label="Time"/>
+            <Knob param="Compressor Multi Output" label="Output" knob="3"/>
+          </Show>
+        </Controls>
+      </Module>
+      <Module name="Limiter">
+        <Set param="Limiter Active" value="On"/>
+        <Controls>
+          <Switch param="Limiter Active" label="Limiter" switch="1"/>
+          <Knob param="Limiter Threshold" label="Threshold" knob="1"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <Group name="Tone" icon="eq">
+      <!-- Starts flat, with every band switched on (0.5 is 0 dB) so the knobs all do something -->
+      <Module name="EQ">
+        <Set param="EQ Active" value="On"/>
+        <Set param="EQ High Pass Active" value="On"/>
+        <Set param="EQ Low Shelf Active" value="On"/>
+        <Set param="EQ Low Shelf Gain" value="0.5"/>
+        <Set param="EQ Band 1 Active" value="On"/>
+        <Set param="EQ Band 1 Gain" value="0.5"/>
+        <Set param="EQ Band 2 Active" value="On"/>
+        <Set param="EQ Band 2 Gain" value="0.5"/>
+        <Set param="EQ Band 3 Active" value="On"/>
+        <Set param="EQ Band 3 Gain" value="0.5"/>
+        <Set param="EQ Band 4 Active" value="On"/>
+        <Set param="EQ Band 4 Gain" value="0.5"/>
+        <Set param="EQ High Shelf Active" value="On"/>
+        <Set param="EQ High Shelf Gain" value="0.5"/>
+        <Controls>
+          <Switch param="EQ Active" label="EQ" switch="1"/>
+          <Knob param="EQ High Pass Frequency" label="Low Cut" knob="1"/>
+          <Knob param="EQ Low Shelf Gain" label="Low" knob="2"/>
+          <Knob param="EQ Band 1 Gain" label="Band 1" knob="3"/>
+          <Knob param="EQ Band 2 Gain" label="Band 2" knob="4"/>
+          <Knob param="EQ Band 3 Gain" label="Band 3" knob="5"/>
+          <Knob param="EQ Band 4 Gain" label="Band 4" knob="6"/>
+          <Knob param="EQ High Shelf Gain" label="High" knob="7"/>
+          <Knob param="EQ Output" label="Output"/>
+        </Controls>
+      </Module>
+      <!-- Sculpt listens first (Analyse), then shapes the voice towards its target (Process) -->
+      <Module name="Sculpt">
+        <Set param="Sculpt Active" value="On"/>
+        <Controls>
+          <Switch param="Sculpt Active" label="Sculpt" switch="1"/>
+          <Choice param="Sculpt State" label="Stage" labels="Reset|Analyse|Process"/>
+          <Choice param="Sculpt Target Curve" label="Target" style="list"/>
+          <Knob param="Sculpt EQ" label="EQ" knob="1"/>
+          <Knob param="Sculpt Dyn" label="Dynamics" knob="2"/>
+        </Controls>
+      </Module>
+      <Module name="Saturation" icon="effect">
+        <Set param="Saturation Active" value="On"/>
+        <Controls>
+          <Switch param="Saturation Active" label="Saturate" switch="1"/>
+          <Choice param="Saturation Type" label="Type"/>
+          <Knob param="Saturation Gain" label="Drive" knob="1"/>
+          <Knob param="Saturation Mix" label="Mix" knob="2"/>
+          <Knob param="Saturation Low Cut" label="Low Cut" knob="3"/>
+          <Knob param="Saturation Output" label="Output" knob="4"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <Group name="Effects" icon="effect">
+      <Module name="Delay">
+        <Set param="Delay Active" value="On"/>
+        <Controls>
+          <Switch param="Delay Active" label="Delay" switch="1"/>
+          <Choice param="Delay Type" label="Type" style="list"/>
+          <Knob param="Delay Amount Main" label="Amount" knob="1"/>
+          <Knob param="Delay Feedback" label="Feedback" knob="2"/>
+          <Show param="Delay Sync" value="Off">
+            <Knob param="Delay Time" label="Time" knob="3"/>
+          </Show>
+          <Show param="Delay Sync" value="On">
+            <Knob param="Delay Sync Note" label="Note" knob="3"/>
+          </Show>
+          <Knob param="Delay Width" label="Width" knob="4"/>
+          <Knob param="Delay Modulation" label="Mod" knob="5"/>
+          <Knob param="Delay Drive" label="Drive" knob="6"/>
+          <Switch param="Delay Sync" label="Sync"/>
+          <Switch param="Delay Ping Pong" label="Ping Pong"/>
+        </Controls>
+      </Module>
+      <Module name="Reverb">
+        <Set param="Reverb Active" value="On"/>
+        <Controls>
+          <Switch param="Reverb Active" label="Reverb" switch="1"/>
+          <Choice param="Reverb Type" label="Type"/>
+          <Knob param="Reverb Amount Main" label="Amount" knob="1"/>
+          <Knob param="Reverb Decay" label="Decay" knob="2"/>
+          <Knob param="Reverb Pre-Delay" label="Pre-Delay" knob="3"/>
+          <Knob param="Reverb Low Cut" label="Low Cut" knob="4"/>
+          <Knob param="Reverb High Cut" label="High Cut" knob="5"/>
+          <Choice param="Reverb Size" label="Size"/>
+        </Controls>
+      </Module>
+      <Module name="Modulation">
+        <Set param="Modulation Active" value="On"/>
+        <Controls>
+          <Switch param="Modulation Active" label="Mod" switch="1"/>
+          <Choice param="Modulation Type" label="Type"/>
+          <Knob param="Modulation Amount Main Vocals" label="Amount" knob="1"/>
+          <Show param="Modulation Sync" value="Off">
+            <Knob param="Modulation Rate" label="Rate" knob="2"/>
+          </Show>
+          <Show param="Modulation Sync" value="On">
+            <Knob param="Modulation Sync Note" label="Note" knob="2"/>
+          </Show>
+          <Knob param="Modulation Depth" label="Depth" knob="3"/>
+          <Knob param="Modulation Width" label="Width" knob="4"/>
+          <Show param="Modulation Type" value="Phaser">
+            <Knob param="Modulation Phaser Manual" label="Manual" knob="5"/>
+          </Show>
+          <Switch param="Modulation Sync" label="Sync"/>
+        </Controls>
+      </Module>
+      <Module name="Doubler">
+        <Set param="Doubler Active" value="On"/>
+        <Controls>
+          <Switch param="Doubler Active" label="Double" switch="1"/>
+          <Knob param="Doubler Spread" label="Spread" knob="1"/>
+          <Knob param="Doubler Level" label="Level" knob="2"/>
+        </Controls>
+      </Module>
+    </Group>
+  </Modules>
+</PluginControl>

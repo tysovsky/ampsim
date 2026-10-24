@@ -27,7 +27,6 @@
 #include "GraphEditorPanel.h"
 #include "../Plugins/InternalPlugins.h"
 #include "MainHostWindow.h"
-#include "PluginControls/ControlXmlParser.h"
 #include "ThemeManager.h"
 
 namespace
@@ -79,13 +78,8 @@ GraphEditorPanel::GraphEditorPanel (PluginGraph& g, KnownPluginList& kpl)
 
     // Where a plugin has definitions in more than one folder, the first folder wins
     for (auto& folder : getPluginDefinitionFolders())
-    {
-        for (auto& [name, path] : ControlXmlParser::listPluginControlsInDirectory (folder.getFullPathName().toStdString()))
-            pluginControlPaths.emplace (name, path);
-
         for (auto& [name, set] : PluginModuleSet::loadAll (folder))
             moduleSets.emplace (name, std::move (set));
-    }
 
     picker = std::make_unique<PluginPicker> (knownPlugins, moduleSets);
 }
@@ -307,10 +301,9 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
     if (auto* io = dynamic_cast<AudioProcessorGraph::AudioGraphIOProcessor*> (node->getProcessor()))
         return io->isInput() ? BlockIcon::input : BlockIcon::output;
 
-    auto* plugin = dynamic_cast<AudioPluginInstance*> (node->getProcessor());
-    const auto setIt = plugin != nullptr ? moduleSets.find (plugin->getPluginDescription().name) : moduleSets.end();
+    auto* set = findModuleSet (*node);
 
-    if (setIt == moduleSets.end())
+    if (set == nullptr || ! set->hasModules())
         return BlockIcon::plugin;
 
     // One of a plugin's modules shows what kind of block it is; the whole plugin shows it's a suite
@@ -319,10 +312,35 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
     if (moduleName.isEmpty())
         return BlockIcon::suite;
 
-    if (auto* module = setIt->second.findModule (moduleName))
+    if (auto* module = set->findModule (moduleName))
         return blockIconFromName (module->icon);
 
     return BlockIcon::plugin;
+}
+
+const XmlElement* GraphEditorPanel::getBlockControls (AudioProcessorGraph::NodeID nodeID) const
+{
+    auto* node = graph.graph.getNodeForId (nodeID);
+    auto* set = node != nullptr ? findModuleSet (*node) : nullptr;
+
+    if (set == nullptr)
+        return nullptr;
+
+    const auto moduleName = node->properties["module"].toString();
+
+    if (moduleName.isEmpty())
+        return set->getPluginControls();
+
+    auto* module = set->findModule (moduleName);
+    return module != nullptr ? module->controls.get() : nullptr;
+}
+
+const PluginModuleSet* GraphEditorPanel::findModuleSet (const AudioProcessorGraph::Node& node) const
+{
+    auto* plugin = dynamic_cast<AudioPluginInstance*> (node.getProcessor());
+    const auto it = plugin != nullptr ? moduleSets.find (plugin->getPluginDescription().name) : moduleSets.end();
+
+    return it != moduleSets.end() ? &it->second : nullptr;
 }
 
 PluginComponent* GraphEditorPanel::getComponentForPlugin (AudioProcessorGraph::NodeID nodeID) const

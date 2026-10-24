@@ -4,7 +4,11 @@ BlockIcon blockIconFromName (const String& name)
 {
     if (name.equalsIgnoreCase ("amp"))      return BlockIcon::amp;
     if (name.equalsIgnoreCase ("pedal"))    return BlockIcon::pedal;
+    if (name.equalsIgnoreCase ("cab"))      return BlockIcon::cab;
     if (name.equalsIgnoreCase ("eq"))       return BlockIcon::eq;
+    if (name.equalsIgnoreCase ("dynamics")) return BlockIcon::dynamics;
+    if (name.equalsIgnoreCase ("pitch"))    return BlockIcon::pitch;
+    if (name.equalsIgnoreCase ("effect"))   return BlockIcon::effect;
 
     return BlockIcon::plugin;
 }
@@ -13,9 +17,13 @@ String getBlockIconCategory (BlockIcon icon)
 {
     switch (icon)
     {
-        case BlockIcon::amp:    return "Amps";
-        case BlockIcon::pedal:  return "Pedals";
-        case BlockIcon::eq:     return "EQ";
+        case BlockIcon::amp:        return "Amps";
+        case BlockIcon::pedal:      return "Pedals";
+        case BlockIcon::cab:        return "Cabs";
+        case BlockIcon::eq:         return "EQ";
+        case BlockIcon::dynamics:   return "Dynamics";
+        case BlockIcon::pitch:      return "Pitch";
+        case BlockIcon::effect:     return "Effects";
         case BlockIcon::input:
         case BlockIcon::output: return "I/O";
         case BlockIcon::plugin:
@@ -77,6 +85,73 @@ void drawBlockIcon (Graphics& g, BlockIcon icon, Rectangle<float> area, Colour c
             dot (0.62f, 0.24f, 0.065f);
             dot (0.5f, 0.43f, 0.03f);
             dot (0.5f, 0.70f, 0.055f);
+            break;
+        }
+
+        case BlockIcon::cab:
+        {
+            // A speaker cabinet with four speakers
+            path.addRoundedRectangle (rect (0.10f, 0.10f, 0.90f, 0.90f), size * 0.06f);
+
+            for (auto x : { 0.32f, 0.68f })
+                for (auto y : { 0.32f, 0.68f })
+                    path.addEllipse (Rectangle<float> (0.28f * size, 0.28f * size).withCentre (point (x, y)));
+
+            g.strokePath (path, stroke);
+
+            for (auto x : { 0.32f, 0.68f })
+                for (auto y : { 0.32f, 0.68f })
+                    dot (x, y, 0.04f);
+
+            break;
+        }
+
+        case BlockIcon::dynamics:
+        {
+            // A gain reduction meter: a scale and a needle
+            const auto pivot = point (0.5f, 0.74f);
+            path.addRoundedRectangle (rect (0.08f, 0.18f, 0.92f, 0.82f), size * 0.06f);
+            path.addCentredArc (pivot.x, pivot.y, 0.34f * size, 0.34f * size, 0.0f, -1.0f, 1.0f, true);
+            path.startNewSubPath (pivot);
+            path.lineTo (pivot.translated (std::sin (0.5f) * 0.36f * size, -std::cos (0.5f) * 0.36f * size));
+            g.strokePath (path, stroke);
+
+            dot (0.5f, 0.74f, 0.05f);
+            break;
+        }
+
+        case BlockIcon::pitch:
+        {
+            // A quaver
+            path.startNewSubPath (point (0.58f, 0.70f));
+            path.lineTo (point (0.58f, 0.12f));
+            path.quadraticTo (point (0.62f, 0.30f), point (0.80f, 0.40f));
+            g.strokePath (path, stroke);
+
+            g.fillEllipse (rect (0.26f, 0.60f, 0.60f, 0.84f));
+            break;
+        }
+
+        case BlockIcon::effect:
+        {
+            // Two sparkles
+            const auto addSparkle = [&] (float x, float y, float radius)
+            {
+                const auto inner = radius * 0.22f;
+                path.startNewSubPath (point (x, y - radius));
+                path.lineTo (point (x + inner, y - inner));
+                path.lineTo (point (x + radius, y));
+                path.lineTo (point (x + inner, y + inner));
+                path.lineTo (point (x, y + radius));
+                path.lineTo (point (x - inner, y + inner));
+                path.lineTo (point (x - radius, y));
+                path.lineTo (point (x - inner, y - inner));
+                path.closeSubPath();
+            };
+
+            addSparkle (0.42f, 0.58f, 0.32f);
+            addSparkle (0.78f, 0.24f, 0.14f);
+            g.strokePath (path, stroke);
             break;
         }
 

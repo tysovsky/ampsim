@@ -70,6 +70,9 @@ public:
     /** What kind of block a node is, for the icon on its tile. */
     BlockIcon getBlockIcon (AudioProcessorGraph::NodeID) const;
 
+    /** The <Controls> from a block's definition file: its module's, or the whole plugin's. */
+    const XmlElement* getBlockControls (AudioProcessorGraph::NodeID) const;
+
     void paint (Graphics&) override;
     void resized() override;
 
@@ -108,7 +111,6 @@ public:
 
     PluginGraph& graph;
     PluginComponent* activeComponent;
-    std::unordered_map<std::string, std::string> pluginControlPaths;
 
 private:
     class InsertButton;
@@ -127,6 +129,7 @@ private:
         std::vector<AudioProcessorGraph::NodeID> getOutputs() const;
     };
 
+    const PluginModuleSet* findModuleSet (const AudioProcessorGraph::Node&) const;
     std::vector<Column> findColumns() const;
     bool isAudioConnected (const Column& sources, const Column& destinations) const;
     bool canAddParallel (size_t column) const;

@@ -5,7 +5,6 @@
 #include "BlockIcons.h"
 
 class GraphEditorPanel;
-class PluginControl;
 
 class PluginComponent final : public Component,
                               public Timer,
@@ -40,25 +39,16 @@ public:
     /** Shows a mix bar for the lane level stage that follows this plugin, or hides it if nullptr. */
     void setLaneLevel(AudioProcessorGraph::Node::Ptr levelNode);
 
-    std::map<String, AudioProcessorParameter*> getParameters() {
-        std::map<String, AudioProcessorParameter*> result;
+    /** The plugin's name, when the tile shows one of its modules. */
+    const String& getSubtitle() const noexcept { return subtitle; }
 
-        auto params = getProcessor()->getParameters();
-
-        for (auto p : params) {
-            result[p->getName(20)] = p;
-        }
-
-        return result;
-    }
-    
-    PluginControl* getPluginControl();
+    /** What kind of block it is. */
+    BlockIcon getIcon() const noexcept { return icon; }
 
     const AudioProcessorGraph::NodeID pluginID;
 
 
 private:
-    void loadPluginControl();
     AudioParameterFloat* getLaneLevelParameter() const;
     Rectangle<int> getMixBarArea() const;
     void setLaneLevelFromPosition(int x);
@@ -82,7 +72,6 @@ private:
     std::unique_ptr<PopupMenu> menu;
     std::unique_ptr<AlertWindow> nodeActionWindow;
     std::unique_ptr<FileChooser> fileChooser;
-    std::unique_ptr < PluginControl> pluginControl;
     const String formatSuffix = getFormatSuffix(getProcessor());
     bool isActive = false;
 

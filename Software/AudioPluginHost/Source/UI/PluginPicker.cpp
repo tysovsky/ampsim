@@ -353,8 +353,9 @@ Array<PluginDescription> PluginPicker::getPluginTypes() const
 
 const PluginModuleSet* PluginPicker::findModuleSet (const PluginDescription& type) const
 {
+    // Only plugins split into modules; some definition files only give a plugin its controls
     const auto it = moduleSets.find (type.name);
-    return it != moduleSets.end() ? &it->second : nullptr;
+    return it != moduleSets.end() && it->second.hasModules() ? &it->second : nullptr;
 }
 
 PluginPicker::Entry PluginPicker::makeChoiceEntry (const String& name, const String& subtitle, BlockIcon icon, PluginChoice choice)
@@ -435,7 +436,8 @@ PluginPicker::Page PluginPicker::makeTypesPage()
     // A page for each kind of block there's at least one of, with whole plugins last
     Page page { "Add to chain", {} };
 
-    for (auto icon : { BlockIcon::amp, BlockIcon::pedal, BlockIcon::eq, BlockIcon::plugin })
+    for (auto icon : { BlockIcon::amp, BlockIcon::pedal, BlockIcon::cab, BlockIcon::eq,
+                       BlockIcon::dynamics, BlockIcon::pitch, BlockIcon::effect, BlockIcon::plugin })
     {
         const auto numEntries = makeTypePage (icon).entries.size();
 

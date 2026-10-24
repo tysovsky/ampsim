@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Parallax X, a bass rig: a channel strip that splits the bass into three bands (a compressed
+  low band, and distorted mid and high bands) and mixes them back together, then a 6-band EQ
+  and a bass cab.
+
+  The three bands are one sound between them, so the channel strip is one module, Bass
+  Distortion, which plays the part of the amp. The EQ, the cab and the noise gate are modules
+  of their own.
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Parallax X">
+  <Controls use="Channel Strip"/>
+
+  <Modules>
+    <Controls name="Channel Strip">
+      <Switch param="Low Compression Active" label="Low"/>
+      <Knob param="Low Compression Comp" label="Comp" knob="1"/>
+      <Knob param="Low Compression Low Pass" label="Low Pass"/>
+      <Knob param="Low Compression Low Level" label="Level" knob="2"/>
+      <Switch param="Mid Distortion Active" label="Mid"/>
+      <Knob param="Mid Distortion Mid Drive" label="Drive" knob="3"/>
+      <Knob param="Mid Distortion Mid Level" label="Level" knob="4"/>
+      <Switch param="High Distortion Active" label="High"/>
+      <Knob param="High Distortion High Drive" label="Drive" knob="5"/>
+      <Knob param="High Distortion High Pass" label="High Pass"/>
+      <Knob param="High Distortion High Level" label="Level" knob="6"/>
+    </Controls>
+
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Active Channel Strip Section" value="Off"/>
+      <Set param="Low Compression Active" value="Off"/>
+      <Set param="Mid Distortion Active" value="Off"/>
+      <Set param="High Distortion Active" value="Off"/>
+      <Set param="EQ Active" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+    </Off>
+
+    <Module name="Bass Distortion" icon="amp">
+      <Set param="Active Channel Strip Section" value="On"/>
+      <Set param="Low Compression Active" value="On"/>
+      <Set param="Mid Distortion Active" value="On"/>
+      <Set param="High Distortion Active" value="On"/>
+      <Controls use="Channel Strip"/>
+    </Module>
+
+    <Module name="EQ" icon="eq">
+      <Set param="EQ Active" value="On"/>
+      <Controls>
+        <Switch param="EQ Active" label="EQ" switch="1"/>
+        <Fader param="EQ Low Shelf" label="Low" knob="1"/>
+        <Fader param="EQ 250 Hz" label="250" knob="2"/>
+        <Fader param="EQ 500 Hz" label="500" knob="3"/>
+        <Fader param="EQ 1000 Hz" label="1k" knob="4"/>
+        <Fader param="EQ 1500 Hz" label="1.5k" knob="5"/>
+        <Fader param="EQ High Shelf" label="High" knob="6"/>
+      </Controls>
+    </Module>
+
+    <Module name="Cab" icon="cab">
+      <Set param="Active Cab Section" value="On"/>
+      <Controls>
+        <Choice param="Cab L Mic Type" label="Mic 1" style="list"/>
+        <Knob param="Cab L Position" label="Position" knob="1"/>
+        <Knob param="Cab L Distance" label="Distance" knob="2"/>
+        <Knob param="Cab L Level" label="Level" knob="3"/>
+        <Choice param="Cab R Mic Type" label="Mic 2" style="list"/>
+        <Knob param="Cab R Position" label="Position" knob="4"/>
+        <Knob param="Cab R Distance" label="Distance" knob="5"/>
+        <Knob param="Cab R Level" label="Level" knob="6"/>
+      </Controls>
+    </Module>
+
+    <Module name="Noise Gate" icon="dynamics">
+      <Set param="Gate Active" value="On"/>
+      <Controls>
+        <Switch param="Gate Active" label="Gate" switch="1"/>
+        <Knob param="Gate Threshold" label="Threshold" knob="1"/>
+      </Controls>
+    </Module>
+  </Modules>
+</PluginControl>

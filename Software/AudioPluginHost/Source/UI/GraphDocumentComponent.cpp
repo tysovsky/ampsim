@@ -281,10 +281,9 @@ void GraphDocumentComponent::init()
     pluginListSidePanel.setContent(&pluginListBox, false);
 
 
-    topPluginControlPanel.reset(new PluginControlsPanel(graphPanel.get(), true));
-    bottomPluginControlPanel.reset(new PluginControlsPanel(graphPanel.get(), false));
-    addAndMakeVisible(topPluginControlPanel.get());
-    addAndMakeVisible(bottomPluginControlPanel.get());
+    blockControls.reset(new BlockControlsPanel(deviceManager));
+    blockControls->onClose = [this] { graphPanel->activeComponentChanged(nullptr); };
+    addChildComponent(blockControls.get());
 
     addAndMakeVisible(pluginListSidePanel);
 
@@ -320,20 +319,17 @@ void GraphDocumentComponent::resized()
         }();
 
         int titleBarHeight = 44;
-        int pluginControlsHeight = 0;
+        int blockControlsHeight = 136;
 
-
-        if (activePlugin && activePlugin->getPluginControl()) {
-            pluginControlsHeight = 50;
-        }
-        
         titleBarComponent->setBounds(r.removeFromTop(titleBarHeight));
-        
+
+        // The selected block's controls go along the bottom, and the chain shrinks to fit above them
+        blockControls->setVisible(blockControls->isShowingBlock());
+
+        if (blockControls->isShowingBlock())
+            blockControls->setBounds(r.removeFromBottom(blockControlsHeight));
 
         graphPanel->setBounds(r);
-
-        topPluginControlPanel->setBounds(Rectangle<int>(0, 0, r.getWidth(), pluginControlsHeight));
-        bottomPluginControlPanel->setBounds(r.removeFromBottom(pluginControlsHeight));
 
         settingsPopup->setBounds(getLocalBounds());
 }
@@ -357,6 +353,12 @@ void GraphDocumentComponent::releaseGraph()
 
     keyboardComp = nullptr;
     statusBar = nullptr;
+
+    // Let go of the plugin whose controls are showing before the graph goes
+    activePlugin = nullptr;
+
+    if (blockControls != nullptr)
+        blockControls->clear();
 
     graphPlayer.setProcessor(nullptr);
     graph = nullptr;
@@ -450,12 +452,31 @@ void GraphDocumentComponent::updateMidiOutput()
 
 void GraphDocumentComponent::onActiveComponentChange(PluginComponent* activeComponent) {
     activePlugin = activeComponent;
+    showBlockControls();
     resized();
 }
 
 void GraphDocumentComponent::onNodeDeleted(PluginComponent* removedComponent) {
     if (removedComponent == activePlugin) {
         activePlugin = nullptr;
+        blockControls->clear();
         resized();
     }
 };
+
+void GraphDocumentComponent::showBlockControls()
+{
+    if (activePlugin != nullptr)
+    {
+        auto node = graph->graph.getNodeForId(activePlugin->pluginID);
+        auto* controls = graphPanel->getBlockControls(activePlugin->pluginID);
+
+        if (node != nullptr && controls != nullptr)
+        {
+            blockControls->showBlock(node, *controls, activePlugin->getName(), activePlugin->getSubtitle(), activePlugin->getIcon());
+            return;
+        }
+    }
+
+    blockControls->clear();
+}

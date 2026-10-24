@@ -12,22 +12,37 @@ namespace
         return settings;
     }
 
-    PluginModule readModule (const XmlElement& element, const XmlElement* group)
+    using NamedControls = std::map<String, std::shared_ptr<const XmlElement>>;
+
+    // An element's <Controls>, or the shared ones it names with use="..."
+    std::shared_ptr<const XmlElement> readControls (const XmlElement& element, const NamedControls& namedControls)
+    {
+        const auto* controls = element.getChildByName ("Controls");
+
+        if (controls == nullptr)
+            return nullptr;
+
+        if (controls->hasAttribute ("use"))
+        {
+            const auto it = namedControls.find (controls->getStringAttribute ("use"));
+
+            if (it != namedControls.end())
+                return it->second;
+
+            DBG ("Plugin definition: no <Controls name=\"" << controls->getStringAttribute ("use") << "\">");
+            return nullptr;
+        }
+
+        return std::make_shared<const XmlElement> (*controls);
+    }
+
+    PluginModule readModule (const XmlElement& element, const XmlElement* group, const NamedControls& namedControls)
     {
         const auto groupName = group != nullptr ? group->getStringAttribute ("name") : String();
         const auto groupIcon = group != nullptr ? group->getStringAttribute ("icon") : String();
 
         return { groupName, element.getStringAttribute ("name"), element.getStringAttribute ("icon", groupIcon),
-                 readSettings (element) };
-    }
-
-    AudioProcessorParameter* findParameter (AudioProcessor& processor, const String& name)
-    {
-        for (auto* parameter : processor.getParameters())
-            if (parameter->getName (128) == name)
-                return parameter;
-
-        return nullptr;
+                 readSettings (element), readControls (element, namedControls) };
     }
 
     // Finds the normalised value for a value's text: one of the parameter's steps ("On", "Roses"),
@@ -65,7 +80,15 @@ PluginModuleSet PluginModuleSet::load (const File& definitionFile)
         return result;
 
     result.pluginName = xml->getStringAttribute ("name");
+
     const auto* modulesElement = xml->getChildByName ("Modules");
+    NamedControls namedControls;
+
+    if (modulesElement != nullptr)
+        for (auto* controls : modulesElement->getChildWithTagNameIterator ("Controls"))
+            namedControls[controls->getStringAttribute ("name")] = std::make_shared<const XmlElement> (*controls);
+
+    result.pluginControls = readControls (*xml, namedControls);
 
     if (modulesElement == nullptr)
         return result;
@@ -76,10 +99,10 @@ PluginModuleSet PluginModuleSet::load (const File& definitionFile)
     for (auto* child : modulesElement->getChildIterator())
     {
         if (child->hasTagName ("Module"))
-            result.modules.push_back (readModule (*child, nullptr));
+            result.modules.push_back (readModule (*child, nullptr, namedControls));
         else if (child->hasTagName ("Group"))
             for (auto* module : child->getChildWithTagNameIterator ("Module"))
-                result.modules.push_back (readModule (*module, child));
+                result.modules.push_back (readModule (*module, child, namedControls));
     }
 
     return result;
@@ -134,7 +157,7 @@ void PluginModuleSet::applySettings (AudioProcessor& processor, const PluginModu
 {
     for (const auto& [name, text] : settings)
     {
-        auto* parameter = findParameter (processor, name);
+        auto* parameter = findParameterByName (processor, name);
         const auto value = parameter != nullptr ? findValue (*parameter, text) : std::nullopt;
 
         // A definition file that doesn't match the plugin (e.g. after the plugin was updated)
@@ -155,4 +178,13 @@ Array<File> getPluginDefinitionFolders()
 {
     return { File::getSpecialLocation (File::currentExecutableFile).getSiblingFile ("PluginUIDefinitions"),
              File ("C:\\Program Files\\StudioHost\\PluginControls") };
+}
+
+AudioProcessorParameter* findParameterByName (AudioProcessor& processor, const String& name)
+{
+    for (auto* parameter : processor.getParameters())
+        if (parameter->getName (128) == name)
+            return parameter;
+
+    return nullptr;
 }

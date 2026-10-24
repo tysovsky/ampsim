@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Soldano SLO-100 X: one amp with two channels, a compressor, two overdrives and a chorus
+  in front of it, a cab, a 9-band graphic EQ, and a delay and reverb after it.
+
+  The amp's Normal channel is clean, or crunchy with its Crunch switch; the Overdrive channel
+  is the high-gain lead sound. Each channel has its own gain and master.
+
+  The plugin lists its chorus with the effects in front of the amp; in case it's actually one
+  of the effects after it, the chorus turns on both sections (everything else in them stays off).
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Soldano SLO-100 X">
+  <Controls use="Amp"/>
+
+  <Modules>
+    <Controls name="Amp">
+      <Choice param="Amp Mode" label="Channel"/>
+      <Show param="Amp Mode" value="Normal">
+        <Choice param="Amp Crunch" label="Voice"/>
+        <Knob param="Amp Preamp Normal Gain" label="Gain" knob="1"/>
+      </Show>
+      <Show param="Amp Mode" value="Overdrive">
+        <Knob param="Amp Preamp Overdrive Gain" label="Gain" knob="1"/>
+      </Show>
+      <Knob param="Amp Bass" label="Bass" knob="2"/>
+      <Knob param="Amp Middle" label="Middle" knob="3"/>
+      <Knob param="Amp Treble" label="Treble" knob="4"/>
+      <Knob param="Amp Presence" label="Presence" knob="5"/>
+      <Knob param="Amp Depth" label="Depth" knob="6"/>
+      <Show param="Amp Mode" value="Normal">
+        <Knob param="Amp Normal Master" label="Master" knob="7"/>
+      </Show>
+      <Show param="Amp Mode" value="Overdrive">
+        <Knob param="Amp Overdrive Master" label="Master" knob="7"/>
+      </Show>
+      <Switch param="Amp Bright" label="Bright" switch="1"/>
+    </Controls>
+
+    <Controls name="Cab">
+      <Choice param="Cab L Mic Type" label="Mic 1" style="list"/>
+      <Knob param="Cab L Position" label="Position" knob="1"/>
+      <Knob param="Cab L Distance" label="Distance" knob="2"/>
+      <Knob param="Cab L Level" label="Level" knob="3"/>
+      <Choice param="Cab R Mic Type" label="Mic 2" style="list"/>
+      <Knob param="Cab R Position" label="Position" knob="4"/>
+      <Knob param="Cab R Distance" label="Distance" knob="5"/>
+      <Knob param="Cab R Level" label="Level" knob="6"/>
+    </Controls>
+
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+      <Set param="Active Pre FX Section" value="Off"/>
+      <Set param="Compressor Active" value="Off"/>
+      <Set param="Overdrive 1 Active" value="Off"/>
+      <Set param="Overdrive 2 Active" value="Off"/>
+      <Set param="Chorus Active" value="Off"/>
+      <Set param="Active Amp Section" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+      <Set param="Active EQ Section" value="Off"/>
+      <Set param="Active Post FX Section" value="Off"/>
+      <Set param="Delay Active" value="Off"/>
+      <Set param="Reverb Active" value="Off"/>
+    </Off>
+
+    <Group name="Amps" icon="amp">
+      <Module name="Normal (Clean)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Mode" value="Normal"/>
+        <Set param="Amp Crunch" value="Clean"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Normal (Crunch)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Mode" value="Normal"/>
+        <Set param="Amp Crunch" value="Crunch"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Overdrive (Lead)">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Mode" value="Overdrive"/>
+        <Controls use="Amp"/>
+      </Module>
+    </Group>
+
+    <Group name="Pedals" icon="pedal">
+      <Module name="Compressor">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Compressor Active" value="On"/>
+        <Controls>
+          <Switch param="Compressor Active" label="Comp" switch="1"/>
+          <Knob param="Compressor Compression" label="Compression" knob="1"/>
+          <Knob param="Compressor Level" label="Level" knob="2"/>
+          <Choice param="Compressor Attack" label="Attack"/>
+        </Controls>
+      </Module>
+      <Module name="Overdrive 1">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Overdrive 1 Active" value="On"/>
+        <Controls>
+          <Switch param="Overdrive 1 Active" label="Drive" switch="1"/>
+          <Knob param="Overdrive 1 Drive" label="Drive" knob="1"/>
+          <Knob param="Overdrive 1 Tone" label="Tone" knob="2"/>
+          <Knob param="Overdrive 1 Level" label="Level" knob="3"/>
+        </Controls>
+      </Module>
+      <Module name="Overdrive 2">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Overdrive 2 Active" value="On"/>
+        <Controls>
+          <Switch param="Overdrive 2 Active" label="Drive" switch="1"/>
+          <Knob param="Overdrive 2 Drive" label="Drive" knob="1"/>
+          <Knob param="Overdrive 2 Tone" label="Tone" knob="2"/>
+          <Knob param="Overdrive 2 Level" label="Level" knob="3"/>
+          <Switch param="Overdrive 2 HiPeak" label="Hi Peak"/>
+        </Controls>
+      </Module>
+      <Module name="Chorus">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Chorus Active" value="On"/>
+        <Controls>
+          <Switch param="Chorus Active" label="Chorus" switch="1"/>
+          <Knob param="Chorus Mix" label="Mix" knob="1"/>
+          <Knob param="Chorus Rate" label="Rate" knob="2"/>
+          <Knob param="Chorus Depth" label="Depth" knob="3"/>
+          <Knob param="Chorus Delay" label="Delay" knob="4"/>
+        </Controls>
+      </Module>
+      <Module name="Delay">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Delay Active" value="On"/>
+        <Controls>
+          <Switch param="Delay Active" label="Delay" switch="1"/>
+          <Knob param="Delay Mix" label="Mix" knob="1"/>
+          <Knob param="Delay Feedback" label="Feedback" knob="2"/>
+          <Show param="Delay Sync Mode" value="Free">
+            <Knob param="Delay Time" label="Time" knob="3"/>
+          </Show>
+          <Show param="Delay Sync Mode" value="DAW">
+            <Knob param="Delay Sync Note" label="Note" knob="3"/>
+          </Show>
+          <Show param="Delay Sync Mode" value="Tap">
+            <Knob param="Delay Tempo" label="Tempo" knob="3"/>
+          </Show>
+          <Knob param="Delay Tone" label="Tone" knob="4"/>
+          <Choice param="Delay Sync Mode" label="Sync"/>
+          <Switch param="Delay Ping Pong" label="Ping Pong"/>
+        </Controls>
+      </Module>
+      <Module name="Reverb">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Reverb Active" value="On"/>
+        <Controls>
+          <Switch param="Reverb Active" label="Reverb" switch="1"/>
+          <Knob param="Reverb Mix" label="Mix" knob="1"/>
+          <Knob param="Reverb Decay" label="Decay" knob="2"/>
+          <Knob param="Reverb Tone" label="Tone" knob="3"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <Module name="Cab" icon="cab">
+      <Set param="Active Cab Section" value="On"/>
+      <Controls use="Cab"/>
+    </Module>
+
+    <!-- The knobs take the middle seven bands; 65 Hz, 16 kHz and the filters are on the screen only -->
+    <Module name="Graphic EQ" icon="eq">
+      <Set param="Active EQ Section" value="On"/>
+      <Controls>
+        <Switch param="Active EQ Section" label="EQ" switch="1"/>
+        <Knob param="EQ High Pass" label="Low Cut"/>
+        <Fader param="EQ 65 Hz" label="65"/>
+        <Fader param="EQ 125 Hz" label="125" knob="1"/>
+        <Fader param="EQ 250 Hz" label="250" knob="2"/>
+        <Fader param="EQ 500 Hz" label="500" knob="3"/>
+        <Fader param="EQ 1 kHz" label="1k" knob="4"/>
+        <Fader param="EQ 2 kHz" label="2k" knob="5"/>
+        <Fader param="EQ 4 kHz" label="4k" knob="6"/>
+        <Fader param="EQ 8 kHz" label="8k" knob="7"/>
+        <Fader param="EQ 16 kHz" label="16k"/>
+        <Knob param="EQ Low Pass" label="High Cut"/>
+      </Controls>
+    </Module>
+
+    <Module name="Noise Gate" icon="dynamics">
+      <Set param="Gate Active" value="On"/>
+      <Controls>
+        <Switch param="Gate Active" label="Gate" switch="1"/>
+        <Knob param="Gate Threshold" label="Threshold" knob="1"/>
+      </Controls>
+    </Module>
+  </Modules>
+</PluginControl>

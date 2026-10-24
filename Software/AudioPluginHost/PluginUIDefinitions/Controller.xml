@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The hardware controls on the pedalboard: seven knobs and a switch on the XIAO SAMD21, which
+  sends them as USB MIDI. The controls in the plugin definition files refer to these by number
+  (knob="1" to knob="7", switch="1"), so a definition file works with any controller once this
+  file says what MIDI its knobs and switches send.
+
+  number   what the definition files call it
+  cc       the MIDI controller a knob sends (0-127), or a switch sends (on at 64 and over)
+  note     the MIDI note a switch sends: on while it's down
+  channel  1-16; leave it out to accept any channel
+  mode     "toggle" for a switch that turns its control on and off with each press
+
+  device is the MIDI input to listen to. It's turned on at startup; without it, every MIDI
+  input turned on in the settings is listened to.
+-->
+<Controller device="Seeed XIAO M0">
+  <Knob number="1" cc="10"/>
+  <Knob number="2" cc="11"/>
+  <Knob number="3" cc="16"/>
+  <Knob number="4" cc="15"/>
+  <Knob number="5" cc="14"/>
+  <Knob number="6" cc="13"/>
+  <Knob number="7" cc="12"/>
+  <Switch number="1" note="64"/>
+</Controller>

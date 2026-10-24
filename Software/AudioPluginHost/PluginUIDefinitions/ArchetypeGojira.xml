@@ -1,47 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Archetype Gojira: controls for the whole plugin. It isn't split into modules yet; that needs
+  its parameters mapped with Tools/ParamDump on a machine that has it.
+
+  Converted from the earlier top and bottom panel layout. Its knobs keep the pedalboard knobs
+  they had: that layout numbered them from 0, so its knob 1 was the second knob (CC 11), which
+  is knob="2" here.
+
+  See ArchetypeTimHensonX.xml for how controls work.
+-->
 <PluginControl name="Archetype Gojira">
-	<TopPanel>
-		<ButtonGroup label="Pre Effects">
-			<Button name="OD" param="OD Active" width="100px"/>
-			<Button name="DRT" param="DRT Active" width="100px"/>
-			<Button name="PHSR" param="PHSR Active" width="100px"/>
-			<Button name="CHR" param="CHR Active" width="100px"/>
-		</ButtonGroup>
-		<SelectorButtons param="Amp Type" label="Amp" id="amp_type">
-			<Button name="Clean" width="100px"/>
-			<Button name="Rust" width="100px"/>
-			<Button name="Hot" width="100px"/>
-		</SelectorButtons>
-		<ButtonGroup label="Post Effects">
-			<Button name="DLY" param="DLY Active" width="100px"/>
-			<Button name="REV" param="REV Active" width="100px"/>
-		</ButtonGroup>
-		<Slider param="Output Gain"/>
-	</TopPanel>
-	<BottomPanel>
-		<PanelStack bind_to="amp_type">
-			<Panel>
-				<Slider param="CLN Amp Gain" label="Gain" knob="1"/>
-				<Slider param="CLN Amp Bass" label="Bass" knob="2" />
-				<Slider param="CLN Amp Mid" label="Mid" knob="3" />
-				<Slider param="CLN Amp Treble" label="Treble" knob="4" />
-			</Panel>
-			<Panel>
-				<Slider param="RUST Amp Gain" label="Gain" knob="1"/>
-				<Slider param="RUST Amp Low" label="Low" knob="2"/>
-				<Slider param="RUST Amp Mid" label="Mid" knob="3"/>
-				<Slider param="RUST Amp High" label="High" knob="4"/>
-				<Slider param="RUST Amp Presence" label="Presence" knob="5"/>
-				<Slider param="RUST Amp Depth" label="Depth" knob="6"/>
-			</Panel>
-			<Panel>
-				<Slider param="HOT Amp Gain" label="Gain" knob="1"/>
-				<Slider param="HOT Amp Low" label="Low" knob="2"/>
-				<Slider param="HOT Amp Mid" label="Mid" knob="3"/>
-				<Slider param="HOT Amp High" label="High" knob="4"/>
-				<Slider param="HOT Amp Presence" label="Presence" knob="5"/>
-				<Slider param="HOT Amp Depth" label="Depth" knob="6"/>
-			</Panel>
-		</PanelStack>
-	</BottomPanel>
+  <Controls>
+    <Switch param="OD Active" label="OD"/>
+    <Switch param="DRT Active" label="DRT"/>
+    <Switch param="PHSR Active" label="PHSR"/>
+    <Switch param="CHR Active" label="CHR"/>
+    <Choice param="Amp Type" label="Amp" labels="Clean|Rust|Hot"/>
+    <Show param="Amp Type" step="0">
+      <Knob param="CLN Amp Gain" label="Gain" knob="2"/>
+      <Knob param="CLN Amp Bass" label="Bass" knob="3"/>
+      <Knob param="CLN Amp Mid" label="Mid" knob="4"/>
+      <Knob param="CLN Amp Treble" label="Treble" knob="5"/>
+    </Show>
+    <Show param="Amp Type" step="1">
+      <Knob param="RUST Amp Gain" label="Gain" knob="2"/>
+      <Knob param="RUST Amp Low" label="Low" knob="3"/>
+      <Knob param="RUST Amp Mid" label="Mid" knob="4"/>
+      <Knob param="RUST Amp High" label="High" knob="5"/>
+      <Knob param="RUST Amp Presence" label="Presence" knob="6"/>
+      <Knob param="RUST Amp Depth" label="Depth" knob="7"/>
+    </Show>
+    <Show param="Amp Type" step="2">
+      <Knob param="HOT Amp Gain" label="Gain" knob="2"/>
+      <Knob param="HOT Amp Low" label="Low" knob="3"/>
+      <Knob param="HOT Amp Mid" label="Mid" knob="4"/>
+      <Knob param="HOT Amp High" label="High" knob="5"/>
+      <Knob param="HOT Amp Presence" label="Presence" knob="6"/>
+      <Knob param="HOT Amp Depth" label="Depth" knob="7"/>
+    </Show>
+    <Switch param="DLY Active" label="DLY"/>
+    <Switch param="REV Active" label="REV"/>
+    <Knob param="Output Gain" label="Output"/>
+  </Controls>
 </PluginControl>

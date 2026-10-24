@@ -3,7 +3,6 @@
 #include "ThemeManager.h"
 #include "../Plugins/InternalPlugins.h"
 
-#include "PluginControls/ControlXmlParser.h"
 
 PluginComponent::PluginComponent(GraphEditorPanel& p, AudioProcessorGraph::NodeID id) : panel(p), graph(p.graph), pluginID(id)
 {
@@ -22,8 +21,6 @@ PluginComponent::PluginComponent(GraphEditorPanel& p, AudioProcessorGraph::NodeI
     setSize(150, 60);
 
     nodeActionWindow = std::make_unique<AlertWindow>("", "", MessageBoxIconType::NoIcon, nullptr);
-
-    loadPluginControl();
 }
 
 
@@ -402,22 +399,3 @@ void PluginComponent::setActive(bool active) {
     repaint();
 }
 
-PluginControl* PluginComponent::getPluginControl() {
-
-    return pluginControl.get();
-}
-
-void PluginComponent::loadPluginControl() {
-    auto name = getProcessor()->getName();
-    auto pluginPath = panel.pluginControlPaths[name.toStdString()];
-
-    if (pluginPath != "") {
-        auto parser = ControlXmlParser(getParameters());
-        auto control = parser.parse(pluginPath);
-
-        pluginControl.reset(control);
-    }
-    else {
-        pluginControl = std::unique_ptr<PluginControl>{};
-    }
-}

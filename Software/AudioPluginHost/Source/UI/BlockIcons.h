@@ -10,12 +10,18 @@ enum class BlockIcon
     suite,      // a whole plugin that's also split into modules
     amp,
     pedal,
+    cab,
     eq,
+    dynamics,   // compressors, gates, de-essers, limiters
+    pitch,      // pitch correction and harmonies
+    effect,     // studio effects such as vocal delays and reverbs
     input,
     output
 };
 
-/** The icon for a name used in definition files ("amp", "pedal", "eq"); anything else is a plain plugin. */
+/** The icon for a name used in definition files ("amp", "pedal", "cab", "eq", "dynamics", "pitch"
+    or "effect"); anything else is a plain plugin.
+*/
 BlockIcon blockIconFromName (const String& name);
 
 /** The picker's category for blocks with this icon, e.g. "Amps". */
