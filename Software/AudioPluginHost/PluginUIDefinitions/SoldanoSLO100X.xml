@@ -95,7 +95,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Compressor Active" label="Comp" switch="1"/>
           <Knob param="Compressor Compression" label="Compression" knob="1"/>
           <Knob param="Compressor Level" label="Level" knob="2"/>
           <Choice param="Compressor Attack" label="Attack"/>
@@ -105,7 +104,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive 1 Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive 1 Active" label="Drive" switch="1"/>
           <Knob param="Overdrive 1 Drive" label="Drive" knob="1"/>
           <Knob param="Overdrive 1 Tone" label="Tone" knob="2"/>
           <Knob param="Overdrive 1 Level" label="Level" knob="3"/>
@@ -115,7 +113,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive 2 Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive 2 Active" label="Drive" switch="1"/>
           <Knob param="Overdrive 2 Drive" label="Drive" knob="1"/>
           <Knob param="Overdrive 2 Tone" label="Tone" knob="2"/>
           <Knob param="Overdrive 2 Level" label="Level" knob="3"/>
@@ -127,7 +124,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Chorus Active" value="On"/>
         <Controls>
-          <Switch param="Chorus Active" label="Chorus" switch="1"/>
           <Knob param="Chorus Mix" label="Mix" knob="1"/>
           <Knob param="Chorus Rate" label="Rate" knob="2"/>
           <Knob param="Chorus Depth" label="Depth" knob="3"/>
@@ -138,7 +134,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Delay Active" value="On"/>
         <Controls>
-          <Switch param="Delay Active" label="Delay" switch="1"/>
           <Knob param="Delay Mix" label="Mix" knob="1"/>
           <Knob param="Delay Feedback" label="Feedback" knob="2"/>
           <Show param="Delay Sync Mode" value="Free">
@@ -159,7 +154,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Reverb Tone" label="Tone" knob="3"/>
@@ -176,7 +170,6 @@
     <Module name="Graphic EQ" icon="eq">
       <Set param="Active EQ Section" value="On"/>
       <Controls>
-        <Switch param="Active EQ Section" label="EQ" switch="1"/>
         <Knob param="EQ High Pass" label="Low Cut"/>
         <Fader param="EQ 65 Hz" label="65"/>
         <Fader param="EQ 125 Hz" label="125" knob="1"/>
@@ -194,7 +187,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

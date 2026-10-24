@@ -175,7 +175,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Compressor Active" label="Comp" switch="1"/>
           <Knob param="Compressor Compression" label="Compression" knob="1"/>
           <Knob param="Compressor Level" label="Level" knob="2"/>
           <Choice param="Compressor Attack" label="Attack"/>
@@ -185,7 +184,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive-1 Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive-1 Active" label="Drive" switch="1"/>
           <Knob param="Overdrive-1 Drive" label="Drive" knob="1"/>
           <Knob param="Overdrive-1 Tone" label="Tone" knob="2"/>
           <Knob param="Overdrive-1 Level" label="Level" knob="3"/>
@@ -196,7 +194,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Delay-1 Active" value="On"/>
         <Controls>
-          <Switch param="Delay-1 Active" label="Delay" switch="1"/>
           <Knob param="Delay-1 Mix" label="Mix" knob="1"/>
           <Knob param="Delay-1 Feedback" label="Feedback" knob="2"/>
           <Show param="Delay-1 Sync" value="Ms">
@@ -213,7 +210,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive-2 Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive-2 Active" label="Drive" switch="1"/>
           <Knob param="Overdrive-2 Gain" label="Gain" knob="1"/>
           <Knob param="Overdrive-2 Bass" label="Bass" knob="2"/>
           <Knob param="Overdrive-2 Treble" label="Treble" knob="3"/>
@@ -224,7 +220,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Delay-2 Active" value="On"/>
         <Controls>
-          <Switch param="Delay-2 Active" label="Delay" switch="1"/>
           <Knob param="Delay-2 Mix" label="Mix" knob="1"/>
           <Knob param="Delay-2 Feedback" label="Feedback" knob="2"/>
           <Show param="Delay-2 Sync" value="Free">
@@ -248,7 +243,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Reverb Low Cut" label="Low Cut" knob="3"/>
@@ -263,7 +257,6 @@
       <Set param="Amp Type" value="Rhythm"/>
       <Set param="Rhythm Amp EQ Active" value="On"/>
       <Controls>
-        <Switch param="Rhythm Amp EQ Active" label="EQ" switch="1"/>
         <Knob param="Rhythm Amp EQ High Pass" label="Low Cut"/>
         <Show param="Rhythm Amp EQ Type" value="Original">
           <Fader param="Rhythm Amp EQ Band 1" label="65"/>
@@ -295,7 +288,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

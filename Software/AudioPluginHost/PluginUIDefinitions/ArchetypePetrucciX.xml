@@ -130,7 +130,6 @@
         <Set param="Active Wah Comp Section" value="On"/>
         <Set param="Wah Active" value="On"/>
         <Controls>
-          <Switch param="Wah Active" label="Wah" switch="1"/>
           <Knob param="Wah Position" label="Position" knob="1"/>
         </Controls>
       </Module>
@@ -138,7 +137,6 @@
         <Set param="Active Wah Comp Section" value="On"/>
         <Set param="Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Compressor Active" label="Comp" switch="1"/>
           <Knob param="Compressor Compression" label="Compression" knob="1"/>
           <Knob param="Compressor Level" label="Level" knob="2"/>
         </Controls>
@@ -147,7 +145,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive Active" label="Drive" switch="1"/>
           <Knob param="Overdrive Drive" label="Drive" knob="1"/>
           <Knob param="Overdrive Tone" label="Tone" knob="2"/>
           <Knob param="Overdrive Level" label="Level" knob="3"/>
@@ -157,7 +154,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Phaser Active" value="On"/>
         <Controls>
-          <Switch param="Phaser Active" label="Phaser" switch="1"/>
           <Knob param="Phaser Rate" label="Rate" knob="1"/>
           <Choice param="Phaser Mode" label="Mode"/>
         </Controls>
@@ -166,7 +162,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Chorus Active" value="On"/>
         <Controls>
-          <Switch param="Chorus Active" label="Chorus" switch="1"/>
           <Knob param="Chorus Rate" label="Rate" knob="1"/>
           <Knob param="Chorus Depth" label="Depth" knob="2"/>
           <Knob param="Chorus Level" label="Level" knob="3"/>
@@ -177,7 +172,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Flanger Active" value="On"/>
         <Controls>
-          <Switch param="Flanger Active" label="Flanger" switch="1"/>
           <Knob param="Flanger Rate" label="Rate" knob="1"/>
           <Knob param="Flanger Depth" label="Depth" knob="2"/>
           <Knob param="Flanger Range" label="Range" knob="3"/>
@@ -195,7 +189,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Chorus 2 Active" value="On"/>
         <Controls>
-          <Switch param="Chorus 2 Active" label="Chorus" switch="1"/>
           <Knob param="Chorus 2 Mix" label="Mix" knob="1"/>
           <Knob param="Chorus 2 Rate" label="Rate" knob="2"/>
           <Knob param="Chorus 2 Depth" label="Depth" knob="3"/>
@@ -207,7 +200,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Delay Active" value="On"/>
         <Controls>
-          <Switch param="Delay Active" label="Delay" switch="1"/>
           <Knob param="Delay Mix" label="Mix" knob="1"/>
           <Knob param="Delay Feedback" label="Feedback" knob="2"/>
           <Show param="Delay Sync" value="Free">
@@ -241,7 +233,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Reverb Pre-Delay" label="Pre-Delay" knob="3"/>
@@ -258,7 +249,6 @@
       <Set param="Amp Type" value="Lead"/>
       <Set param="Lead EQ Active" value="On"/>
       <Controls>
-        <Switch param="Lead EQ Active" label="EQ" switch="1"/>
         <Knob param="Lead EQ HPF" label="Low Cut"/>
         <Knob param="Lead EQ Lo Freq" label="Freq"/>
         <Knob param="Lead EQ Lo Gain" label="Low" knob="1"/>
@@ -275,7 +265,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

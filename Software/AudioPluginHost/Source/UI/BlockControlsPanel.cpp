@@ -588,8 +588,19 @@ void BlockControlsPanel::handleControllerMessage (const MidiMessage& message)
         if (change->toggles && ! change->isOn)
             return;
 
+        bool isUsed = false;
+
         for (auto* control : controls)
+        {
             if (control->switchNumber == change->number && control->isVisible())
+            {
                 control->setFromSwitch (change->toggles ? ! control->isOn() : change->isOn);
+                isUsed = true;
+            }
+        }
+
+        // Otherwise it turns the block itself on and off
+        if (! isUsed && node != nullptr && onSwitchBlock != nullptr)
+            onSwitchBlock (change->toggles ? node->isBypassed() : change->isOn);
     }
 }

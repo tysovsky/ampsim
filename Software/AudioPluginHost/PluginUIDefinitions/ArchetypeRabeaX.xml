@@ -150,11 +150,9 @@
     </Group>
 
     <Group name="Pedals" icon="pedal">
-      <!-- The synth section has no switch of its own, so the section's switch turns it on and off -->
       <Module name="Overlord Synth">
         <Set param="Active Synth Section" value="On"/>
         <Controls>
-          <Switch param="Active Synth Section" label="Synth" switch="1"/>
           <Knob param="Synth Mix" label="Mix" knob="1"/>
           <Knob param="Synth Sensitivity" label="Sensitivity" knob="2"/>
           <Knob param="Synth Glide" label="Glide" knob="3"/>
@@ -172,7 +170,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Twin Blade Dual Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Twin Blade Dual Compressor Active" label="Comp" switch="1"/>
           <Knob param="Twin Blade Dual Compressor In" label="In" knob="1"/>
           <Knob param="Twin Blade Dual Compressor Out" label="Out" knob="2"/>
           <Knob param="Twin Blade Dual Compressor Dry" label="Dry" knob="3"/>
@@ -185,7 +182,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Chaos Bed Octaver Active" value="On"/>
         <Controls>
-          <Switch param="Chaos Bed Octaver Active" label="Octaver" switch="1"/>
           <Knob param="Chaos Bed Octaver Direct Level" label="Direct" knob="1"/>
           <Knob param="Chaos Bed Octaver Oct Up" label="Oct Up" knob="2"/>
           <Knob param="Chaos Bed Octaver Oct Down" label="Oct Down" knob="3"/>
@@ -196,7 +192,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Colossus Fuzz Active" value="On"/>
         <Controls>
-          <Switch param="Colossus Fuzz Active" label="Fuzz" switch="1"/>
           <Knob param="Colossus Fuzz Fuzz" label="Fuzz" knob="1"/>
           <Knob param="Colossus Fuzz Level" label="Level" knob="2"/>
           <Knob param="Colossus Fuzz Bass" label="Bass" knob="3"/>
@@ -208,7 +203,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Paragon Overdrive Active" value="On"/>
         <Controls>
-          <Switch param="Paragon Overdrive Active" label="Drive" switch="1"/>
           <Knob param="Paragon Overdrive Drive" label="Drive" knob="1"/>
           <Knob param="Paragon Overdrive Level" label="Level" knob="2"/>
           <Knob param="Paragon Overdrive Bass" label="Bass" knob="3"/>
@@ -221,7 +215,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Atlas Delay Active" value="On"/>
         <Controls>
-          <Switch param="Atlas Delay Active" label="Delay" switch="1"/>
           <Knob param="Atlas Delay Mix" label="Mix" knob="1"/>
           <Knob param="Atlas Delay Feedback" label="Feedback" knob="2"/>
           <Show param="Atlas Delay Sync" value="Free">
@@ -254,7 +247,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Aeons Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Aeons Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Aeons Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Aeons Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Aeons Reverb Low Cut" label="Low Cut" knob="3"/>
@@ -272,7 +264,6 @@
       <Set param="Amp Type" value="Lead"/>
       <Set param="Lead EQ Active" value="On"/>
       <Controls>
-        <Switch param="Lead EQ Active" label="EQ" switch="1"/>
         <Knob param="Lead EQ HPF" label="Low Cut"/>
         <Knob param="Lead EQ Lo Freq" label="Freq"/>
         <Knob param="Lead EQ Lo Gain" label="Low" knob="1"/>
@@ -289,7 +280,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

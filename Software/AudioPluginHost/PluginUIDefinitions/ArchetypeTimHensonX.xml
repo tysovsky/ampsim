@@ -14,6 +14,10 @@
   BlockControlsPanel.h). knob="1" to "7" and switch="1" are the pedalboard's knobs and switch,
   as numbered in Controller.xml.
 
+  A block is turned on and off by bypassing it, so a module's controls don't include a switch
+  for its own effect, section or EQ; the module's settings turn that on. On a block whose
+  controls don't use the pedalboard's switch, the switch bypasses the block instead.
+
   The plugin calls its amps Roses, Cherubs and Pink. Its factory presets use Roses for clean
   and acoustic sounds, Cherubs for clean-to-crunch rhythm, and Pink for leads and high gain.
   Each amp has its own 9-band EQ, which is the one the EQ section uses while that amp is chosen.
@@ -134,13 +138,11 @@
       </Controls>
     </Module>
 
-    <!-- Each pedal's switch turns it on and off, so the pedalboard's switch works like a footswitch -->
     <Group name="Pedals" icon="pedal">
       <Module name="Boost">
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Boost Active" value="On"/>
         <Controls>
-          <Switch param="Boost Active" label="Boost" switch="1"/>
           <Knob param="Boost Gain" label="Gain" knob="1"/>
           <Knob param="Boost Level" label="Level" knob="2"/>
           <Knob param="Boost Bass" label="Bass" knob="3"/>
@@ -151,7 +153,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Compressor Active" label="Comp" switch="1"/>
           <Knob param="Compressor Compression" label="Compression" knob="1"/>
           <Knob param="Compressor Level" label="Level" knob="2"/>
           <Choice param="Compressor Attack" label="Attack"/>
@@ -161,7 +162,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Overdrive Active" value="On"/>
         <Controls>
-          <Switch param="Overdrive Active" label="Drive" switch="1"/>
           <Knob param="Overdrive Drive" label="Drive" knob="1"/>
           <Knob param="Overdrive Tone" label="Tone" knob="2"/>
           <Knob param="Overdrive Level" label="Level" knob="3"/>
@@ -171,7 +171,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Chorus Active" value="On"/>
         <Controls>
-          <Switch param="Chorus Active" label="Chorus" switch="1"/>
           <Knob param="Chorus Mix" label="Mix" knob="1"/>
         </Controls>
       </Module>
@@ -179,7 +178,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Delay Active" value="On"/>
         <Controls>
-          <Switch param="Delay Active" label="Delay" switch="1"/>
           <Knob param="Delay Mix" label="Mix" knob="1"/>
           <Knob param="Delay Feedback" label="Feedback" knob="2"/>
           <Show param="Delay Sync" value="Free">
@@ -202,7 +200,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Reverb Low Cut" label="Low Cut" knob="3"/>
@@ -215,9 +212,11 @@
     <!-- The knobs take the middle seven bands; the outer two and the filters are on the screen only -->
     <Module name="EQ" icon="eq">
       <Set param="Active EQ Section" value="On"/>
+      <Set param="Roses EQ Active" value="On"/>
+      <Set param="Cherubs EQ Active" value="On"/>
+      <Set param="Pink EQ Active" value="On"/>
       <Controls>
         <Show param="Amp Type" value="Roses">
-          <Switch param="Roses EQ Active" label="EQ" switch="1"/>
           <Knob param="Roses EQ Hpf" label="Low Cut"/>
           <Fader param="Roses EQ Band 1" label="1"/>
           <Fader param="Roses EQ Band 2" label="2" knob="1"/>
@@ -231,7 +230,6 @@
           <Knob param="Roses EQ Lpf" label="High Cut"/>
         </Show>
         <Show param="Amp Type" value="Cherubs">
-          <Switch param="Cherubs EQ Active" label="EQ" switch="1"/>
           <Knob param="Cherubs EQ Hpf" label="Low Cut"/>
           <Fader param="Cherubs EQ Band 1" label="1"/>
           <Fader param="Cherubs EQ Band 2" label="2" knob="1"/>
@@ -245,7 +243,6 @@
           <Knob param="Cherubs EQ Lpf" label="High Cut"/>
         </Show>
         <Show param="Amp Type" value="Pink">
-          <Switch param="Pink EQ Active" label="EQ" switch="1"/>
           <Knob param="Pink EQ Hpf" label="Low Cut"/>
           <Fader param="Pink EQ Band 1" label="1"/>
           <Fader param="Pink EQ Band 2" label="2" knob="1"/>
@@ -264,7 +261,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

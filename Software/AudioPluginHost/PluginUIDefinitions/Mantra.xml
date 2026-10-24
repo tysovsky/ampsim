@@ -49,7 +49,6 @@
       <Module name="Pitch Correction">
         <Set param="Tune Active" value="On"/>
         <Controls>
-          <Switch param="Tune Active" label="Tune" switch="1"/>
           <Choice param="Key Root Note" label="Key" style="list"/>
           <Choice param="Scale" label="Scale" style="list"/>
           <Knob param="Tune Attack" label="Speed" knob="1"/>
@@ -63,7 +62,6 @@
       <Module name="Harmonies">
         <Set param="Active Harmonies" value="On"/>
         <Controls>
-          <Switch param="Active Harmonies" label="Harmony" switch="1"/>
           <Choice param="Key Root Note" label="Key" style="list"/>
           <Choice param="Scale" label="Scale" style="list"/>
           <Knob param="Harmonies Level" label="Level" knob="1"/>
@@ -79,7 +77,6 @@
       <Module name="Gate">
         <Set param="Gate Active" value="On"/>
         <Controls>
-          <Switch param="Gate Active" label="Gate" switch="1"/>
           <Knob param="Gate Opening" label="Open" knob="1"/>
           <Knob param="Gate Closing" label="Close" knob="2"/>
           <Knob param="Gate Hold Time" label="Hold" knob="3"/>
@@ -88,7 +85,6 @@
       <Module name="De-esser">
         <Set param="De-esser Active" value="On"/>
         <Controls>
-          <Switch param="De-esser Active" label="De-ess" switch="1"/>
           <Knob param="De-esser Amount" label="Amount" knob="1"/>
           <Knob param="De-esser Low Cut" label="From" knob="2"/>
           <Knob param="De-esser High Cut" label="To" knob="3"/>
@@ -98,7 +94,6 @@
       <Module name="Compressor">
         <Set param="Compressor Active" value="On"/>
         <Controls>
-          <Switch param="Compressor Active" label="Comp" switch="1"/>
           <Choice param="Compressor Type" label="Type"/>
           <Show param="Compressor Type" value="Tube">
             <Choice param="Compressor Tube Mode" label="Mode"/>
@@ -123,7 +118,6 @@
       <Module name="Limiter">
         <Set param="Limiter Active" value="On"/>
         <Controls>
-          <Switch param="Limiter Active" label="Limiter" switch="1"/>
           <Knob param="Limiter Threshold" label="Threshold" knob="1"/>
         </Controls>
       </Module>
@@ -147,7 +141,6 @@
         <Set param="EQ High Shelf Active" value="On"/>
         <Set param="EQ High Shelf Gain" value="0.5"/>
         <Controls>
-          <Switch param="EQ Active" label="EQ" switch="1"/>
           <Knob param="EQ High Pass Frequency" label="Low Cut" knob="1"/>
           <Knob param="EQ Low Shelf Gain" label="Low" knob="2"/>
           <Knob param="EQ Band 1 Gain" label="Band 1" knob="3"/>
@@ -162,7 +155,6 @@
       <Module name="Sculpt">
         <Set param="Sculpt Active" value="On"/>
         <Controls>
-          <Switch param="Sculpt Active" label="Sculpt" switch="1"/>
           <Choice param="Sculpt State" label="Stage" labels="Reset|Analyse|Process"/>
           <Choice param="Sculpt Target Curve" label="Target" style="list"/>
           <Knob param="Sculpt EQ" label="EQ" knob="1"/>
@@ -172,7 +164,6 @@
       <Module name="Saturation" icon="effect">
         <Set param="Saturation Active" value="On"/>
         <Controls>
-          <Switch param="Saturation Active" label="Saturate" switch="1"/>
           <Choice param="Saturation Type" label="Type"/>
           <Knob param="Saturation Gain" label="Drive" knob="1"/>
           <Knob param="Saturation Mix" label="Mix" knob="2"/>
@@ -186,7 +177,6 @@
       <Module name="Delay">
         <Set param="Delay Active" value="On"/>
         <Controls>
-          <Switch param="Delay Active" label="Delay" switch="1"/>
           <Choice param="Delay Type" label="Type" style="list"/>
           <Knob param="Delay Amount Main" label="Amount" knob="1"/>
           <Knob param="Delay Feedback" label="Feedback" knob="2"/>
@@ -206,7 +196,6 @@
       <Module name="Reverb">
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Choice param="Reverb Type" label="Type"/>
           <Knob param="Reverb Amount Main" label="Amount" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
@@ -219,7 +208,6 @@
       <Module name="Modulation">
         <Set param="Modulation Active" value="On"/>
         <Controls>
-          <Switch param="Modulation Active" label="Mod" switch="1"/>
           <Choice param="Modulation Type" label="Type"/>
           <Knob param="Modulation Amount Main Vocals" label="Amount" knob="1"/>
           <Show param="Modulation Sync" value="Off">
@@ -239,7 +227,6 @@
       <Module name="Doubler">
         <Set param="Doubler Active" value="On"/>
         <Controls>
-          <Switch param="Doubler Active" label="Double" switch="1"/>
           <Knob param="Doubler Spread" label="Spread" knob="1"/>
           <Knob param="Doubler Level" label="Level" knob="2"/>
         </Controls>

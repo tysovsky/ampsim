@@ -68,7 +68,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Zuul Active" value="On"/>
         <Controls>
-          <Switch param="Zuul Active" label="Zuul" switch="1"/>
           <Knob param="Zuul Threshold" label="Threshold" knob="1"/>
         </Controls>
       </Module>
@@ -76,7 +75,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="HexDrive Active" value="On"/>
         <Controls>
-          <Switch param="HexDrive Active" label="Drive" switch="1"/>
           <Knob param="HexDrive Drive" label="Drive" knob="1"/>
           <Knob param="HexDrive Tone" label="Tone" knob="2"/>
           <Knob param="HexDrive Level" label="Level" knob="3"/>
@@ -86,7 +84,6 @@
         <Set param="Active Pre FX Section" value="On"/>
         <Set param="Grind Active" value="On"/>
         <Controls>
-          <Switch param="Grind Active" label="Boost" switch="1"/>
           <Knob param="Grind Boost" label="Grind" knob="1"/>
         </Controls>
       </Module>
@@ -94,7 +91,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Delay Active" value="On"/>
         <Controls>
-          <Switch param="Delay Active" label="Delay" switch="1"/>
           <Knob param="Delay Mix" label="Mix" knob="1"/>
           <Knob param="Delay Feedback" label="Feedback" knob="2"/>
           <Show param="Delay Sync Mode" value="Free">
@@ -116,7 +112,6 @@
         <Set param="Active Post FX Section" value="On"/>
         <Set param="Reverb Active" value="On"/>
         <Controls>
-          <Switch param="Reverb Active" label="Reverb" switch="1"/>
           <Knob param="Reverb Mix" label="Mix" knob="1"/>
           <Knob param="Reverb Decay" label="Decay" knob="2"/>
           <Knob param="Reverb Tone" label="Tone" knob="3"/>
@@ -128,7 +123,6 @@
     <Module name="Graphic EQ" icon="eq">
       <Set param="Active EQ Section" value="On"/>
       <Controls>
-        <Switch param="Active EQ Section" label="EQ" switch="1"/>
         <Knob param="EQ High Pass" label="Low Cut"/>
         <Fader param="EQ 65 Hz" label="65"/>
         <Fader param="EQ 125 Hz" label="125" knob="1"/>
@@ -146,7 +140,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

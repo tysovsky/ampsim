@@ -49,7 +49,6 @@
     <Module name="EQ" icon="eq">
       <Set param="EQ Active" value="On"/>
       <Controls>
-        <Switch param="EQ Active" label="EQ" switch="1"/>
         <Fader param="EQ Low Shelf" label="Low" knob="1"/>
         <Fader param="EQ 250 Hz" label="250" knob="2"/>
         <Fader param="EQ 500 Hz" label="500" knob="3"/>
@@ -76,7 +75,6 @@
     <Module name="Noise Gate" icon="dynamics">
       <Set param="Gate Active" value="On"/>
       <Controls>
-        <Switch param="Gate Active" label="Gate" switch="1"/>
         <Knob param="Gate Threshold" label="Threshold" knob="1"/>
       </Controls>
     </Module>

@@ -332,6 +332,22 @@ void GraphDocumentComponent::init()
 
     blockControls.reset(new BlockControlsPanel(deviceManager));
     blockControls->onClose = [this] { graphPanel->activeComponentChanged(nullptr); };
+
+    // The pedalboard's switch, on a block none of whose controls use it, bypasses the block,
+    // as holding it and choosing Bypass does. A chain's inputs and outputs aren't bypassed.
+    blockControls->onSwitchBlock = [this](bool shouldBeOn)
+    {
+        if (activePlugin == nullptr)
+            return;
+
+        auto* node = graph->graph.getNodeForId(activePlugin->pluginID);
+
+        if (node == nullptr || dynamic_cast<ChainEndProcessor*>(node->getProcessor()) != nullptr)
+            return;
+
+        graph->setNodeBypassed(activePlugin->pluginID, !shouldBeOn);
+        activePlugin->repaint();
+    };
     addChildComponent(blockControls.get());
 
     addAndMakeVisible(pluginListSidePanel);

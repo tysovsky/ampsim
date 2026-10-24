@@ -27,6 +27,8 @@
     knob also turns a Choice through its steps, and a switch picks a Choice's
     first or last step. Controls inside a hidden <Show> don't follow the
     controller, so the same knob can do different things for, say, each amp.
+    A switch that none of the block's controls use turns the block itself on
+    and off instead (see onSwitchBlock).
 */
 class BlockControlsPanel final : public Component,
                                  private MidiInputCallback,
@@ -50,6 +52,11 @@ public:
 
     /** Called when the close button is tapped. */
     std::function<void()> onClose;
+
+    /** Called when the controller's switch is used on a block none of whose controls use it, to
+        turn the block on or off (by bypassing it). A toggling switch asks for the opposite of
+        whether the block is on now. */
+    std::function<void (bool shouldBeOn)> onSwitchBlock;
 
     void paint (Graphics&) override;
     void resized() override;
