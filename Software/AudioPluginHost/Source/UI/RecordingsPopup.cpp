@@ -8,7 +8,7 @@ namespace
     constexpr int headerHeight = 52;
     constexpr int headerButtonWidth = 120;
     constexpr int rowHeight = 64;
-    constexpr int deleteButtonWidth = 64;
+    constexpr int rowButtonWidth = 64;
     constexpr int playButtonSize = 88;
 
     // e.g. "1:05", or "1:02:05" past an hour
@@ -190,7 +190,38 @@ public:
 };
 
 //==============================================================================
-// What goes on top of each row of the list: its delete button, at the right-hand end
+// A pencil, for renaming a recording
+class RecordingsPopup::RenameButton final : public Button
+{
+public:
+    RenameButton() : Button ("Rename")
+    {
+        setWantsKeyboardFocus (false);
+    }
+
+    void paintButton (Graphics& g, bool, bool isButtonDown) override
+    {
+        const auto size = jmin (24.0f, (float) jmin (getWidth(), getHeight()));
+        const auto box = getLocalBounds().toFloat().withSizeKeepingCentre (size, size);
+        const auto point = [&] (float x, float y) { return box.getRelativePoint (x, y); };
+
+        Path pencil;
+        pencil.startNewSubPath (point (0.10f, 0.90f));
+        pencil.lineTo (point (0.16f, 0.66f));
+        pencil.lineTo (point (0.70f, 0.12f));
+        pencil.lineTo (point (0.88f, 0.30f));
+        pencil.lineTo (point (0.34f, 0.84f));
+        pencil.closeSubPath();
+        pencil.startNewSubPath (point (0.58f, 0.24f));
+        pencil.lineTo (point (0.76f, 0.42f));
+
+        g.setColour (isButtonDown ? findColour (AppColourIds::signalPath) : findColour (Label::textColourId).withAlpha (0.7f));
+        g.strokePath (pencil, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+    }
+};
+
+//==============================================================================
+// What goes on top of each row of the list: its rename and delete buttons, at the right-hand end
 class RecordingsPopup::RowControls final : public Component
 {
 public:
@@ -199,20 +230,30 @@ public:
         // Taps anywhere else in the row go through to the list, which opens the recording
         setInterceptsMouseClicks (false, true);
 
+        renameButton.onClick = [this] { popup.renameRecording (file, name); };
         deleteButton.onClick = [this] { popup.deleteRecording (file); };
+        addAndMakeVisible (renameButton);
         addAndMakeVisible (deleteButton);
     }
 
-    void setRecording (const File& recording)    { file = recording; }
+    void setRecording (const Recording& recording)
+    {
+        file = recording.file;
+        name = recording.name;
+    }
 
     void resized() override
     {
-        deleteButton.setBounds (getLocalBounds().reduced (0, 4).removeFromRight (deleteButtonWidth));
+        auto area = getLocalBounds().reduced (0, 4);
+        deleteButton.setBounds (area.removeFromRight (rowButtonWidth));
+        renameButton.setBounds (area.removeFromRight (rowButtonWidth));
     }
 
 private:
     RecordingsPopup& popup;
     File file;
+    String name;
+    RenameButton renameButton;
     DeleteButton deleteButton;
 };
 
@@ -293,6 +334,7 @@ void RecordingsPopup::show()
 
 void RecordingsPopup::hide()
 {
+    textEntry.hide();
     closePlayer();
     setVisible (false);
 }
@@ -344,8 +386,8 @@ void RecordingsPopup::paintListBoxItem (int row, Graphics& g, int width, int hei
     g.setColour (findColour (TextEditor::backgroundColourId));
     g.fillRoundedRectangle (area.toFloat(), 8.0f);
 
-    // Room for the delete button on top, at the right-hand end
-    area.removeFromRight (deleteButtonWidth);
+    // Room for the rename and delete buttons on top, at the right-hand end
+    area.removeFromRight (2 * rowButtonWidth);
     area.reduce (16, 6);
     const auto textColour = findColour (Label::textColourId);
 
@@ -379,7 +421,7 @@ Component* RecordingsPopup::refreshComponentForRow (int row, bool, Component* ex
     if (controls == nullptr)
         controls = std::make_unique<RowControls> (*this);
 
-    controls->setRecording (recordings[(size_t) row].file);
+    controls->setRecording (recordings[(size_t) row]);
     return controls.release();
 }
 
@@ -393,14 +435,43 @@ void RecordingsPopup::deleteRecording (const File& file)
         if (! file.moveToTrash())
             file.deleteFile();
 
-        if (safeThis == nullptr)
+        if (safeThis != nullptr)
+            safeThis->refreshList();
+    });
+}
+
+void RecordingsPopup::renameRecording (const File& file, const String& currentName)
+{
+    textEntry.show (*this, "Rename recording", currentName, [safeThis = SafePointer<RecordingsPopup> (this), file] (const String& newName)
+    {
+        const auto name = File::createLegalFileName (newName.trim());
+
+        if (safeThis == nullptr || name.isEmpty())
             return;
 
-        safeThis->findRecordings();
-        safeThis->list.updateContent();
-        safeThis->list.repaint();
-        safeThis->emptyLabel.setVisible (safeThis->recordings.empty());
+        // The time it was started stays at the front of the file's name, which is how the list
+        // knows when it was made
+        const auto oldName = file.getFileNameWithoutExtension();
+        const auto startTime = parseStartTime (oldName).has_value() ? oldName.substring (0, 20) : String();
+        auto renamed = file.getSiblingFile (startTime + name + file.getFileExtension());
+
+        // A different recording with the name already gets a number on the end
+        if (renamed.exists() && ! renamed.getFullPathName().equalsIgnoreCase (file.getFullPathName()))
+            renamed = renamed.getNonexistentSibling();
+
+        if (renamed != file)
+            file.moveFileTo (renamed);
+
+        safeThis->refreshList();
     });
+}
+
+void RecordingsPopup::refreshList()
+{
+    findRecordings();
+    list.updateContent();
+    list.repaint();
+    emptyLabel.setVisible (! playerOpen && recordings.empty());
 }
 
 //==============================================================================

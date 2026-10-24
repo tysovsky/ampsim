@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "../Audio/Recorder.h"
+#include "TextEntryPopup.h"
 #include "TouchLookAndFeel.h"
 
 //==============================================================================
@@ -9,7 +10,8 @@
     A popup covering the window with the recordings made so far, newest first.
     Tapping one opens a player for it, with a play/pause button and a bar along
     which it can be moved to any point. It plays on the first two outputs. Each
-    has a button to delete it, which moves the file to the Recycle Bin.
+    has buttons to rename it, on an on-screen keyboard, and to delete it, which
+    moves the file to the Recycle Bin.
 */
 class RecordingsPopup final : public Component,
                               private ListBoxModel,
@@ -30,6 +32,7 @@ private:
     class PlayButton;
     class SeekBar;
     class DeleteButton;
+    class RenameButton;
     class RowControls;
 
     struct Recording
@@ -49,6 +52,8 @@ private:
 
     void findRecordings();
     void deleteRecording (const File&);
+    void renameRecording (const File&, const String& currentName);
+    void refreshList();
     void openPlayer (const Recording&);
     void closePlayer();
     std::vector<Component*> getPlayerParts();
@@ -66,6 +71,7 @@ private:
     std::unique_ptr<PlayButton> playButton;
     std::unique_ptr<SeekBar> seekBar;
 
+    TextEntryPopup textEntry;
     std::vector<Recording> recordings;
     bool playerOpen = false;
 
