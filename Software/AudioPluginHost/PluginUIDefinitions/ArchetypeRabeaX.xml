@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Archetype Rabea X: three amps (Clean, Crunch and Lead), each with its own cab and its own
+  4-band semi-parametric EQ; a synth pedal, a dual compressor, an octaver, a fuzz and an
+  overdrive in front of them; and a delay and reverb after them.
+
+  The amp chooses the cab while the two are linked, and the EQ always. So each cab module links
+  them and picks its amp (with the amp section off) to have that amp's cab, and its mics' types
+  are that amp's. Each amp's cab offers six mics twice over, for the cab's two speakers; the
+  plugin names both sets the same, so the lists here call them A and B. The EQ module uses the
+  Lead amp's EQ.
+
+  The Overlord synth follows the notes played and mixes its oscillators in with the guitar.
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Archetype Rabea X">
+  <Controls use="Amp">
+    <Choice param="Amp Type" label="Amp"/>
+  </Controls>
+
+  <Modules>
+    <!-- Each amp module picks its amp, so it only shows that amp's knobs -->
+    <Controls name="Amp">
+      <Show param="Amp Type" value="Clean">
+        <Knob param="Clean Amp Volume" label="Volume" knob="1"/>
+        <Knob param="Clean Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Clean Amp Middle" label="Middle" knob="3"/>
+        <Knob param="Clean Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Clean Amp Output" label="Output" knob="5"/>
+        <Switch param="Clean Amp Mid Boost" label="Mid Boost" switch="1"/>
+        <Switch param="Clean Amp Treble Boost" label="High Boost"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Knob param="Crunch Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Crunch Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Crunch Amp Middle" label="Middle" knob="3"/>
+        <Knob param="Crunch Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Crunch Amp Master" label="Master" knob="5"/>
+        <Knob param="Crunch Amp Depth" label="Depth" knob="6"/>
+        <Knob param="Crunch Amp Output" label="Output" knob="7"/>
+        <Switch param="Crunch Amp Mid Boost" label="Mid Boost" switch="1"/>
+        <Switch param="Crunch Amp Treble Boost" label="High Boost"/>
+        <Choice param="Crunch Amp Tubes" label="Tubes"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Knob param="Lead Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Lead Amp Tight" label="Tight"/>
+        <Knob param="Lead Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Lead Amp Middle" label="Middle" knob="3"/>
+        <Knob param="Lead Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Lead Amp Presence" label="Presence" knob="5"/>
+        <Knob param="Lead Amp Depth" label="Depth" knob="6"/>
+        <Knob param="Lead Amp Master" label="Master" knob="7"/>
+        <Knob param="Lead Amp Output" label="Output"/>
+        <Choice param="Lead Amp Tubes" label="Tubes"/>
+      </Show>
+    </Controls>
+
+    <Controls name="Cab">
+      <Switch param="Cab L Active" label="Mic 1"/>
+      <Show param="Amp Type" value="Clean">
+        <Choice param="Clean Amp Cab L Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Choice param="Crunch Amp Cab L Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Choice param="Lead Amp Cab L Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Knob param="Cab L Position" label="Position" knob="1"/>
+      <Knob param="Cab L Distance" label="Distance" knob="2"/>
+      <Knob param="Cab L Level" label="Level" knob="3"/>
+      <Switch param="Cab R Active" label="Mic 2"/>
+      <Show param="Amp Type" value="Clean">
+        <Choice param="Clean Amp Cab R Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Choice param="Crunch Amp Cab R Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Choice param="Lead Amp Cab R Mic" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Knob param="Cab R Position" label="Position" knob="4"/>
+      <Knob param="Cab R Distance" label="Distance" knob="5"/>
+      <Knob param="Cab R Level" label="Level" knob="6"/>
+    </Controls>
+
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+      <Set param="Active Synth Section" value="Off"/>
+      <Set param="Active Pre FX Section" value="Off"/>
+      <Set param="Twin Blade Dual Compressor Active" value="Off"/>
+      <Set param="Chaos Bed Octaver Active" value="Off"/>
+      <Set param="Colossus Fuzz Active" value="Off"/>
+      <Set param="Paragon Overdrive Active" value="Off"/>
+      <Set param="Active Amp Section" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+      <Set param="Active EQ Section" value="Off"/>
+      <Set param="Active Post FX Section" value="Off"/>
+      <Set param="Atlas Delay Active" value="Off"/>
+      <Set param="Aeons Reverb Active" value="Off"/>
+      <Set param="Aeons Reverb Freeze" value="Off"/>
+    </Off>
+
+    <Group name="Amps" icon="amp">
+      <Module name="Clean">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Clean"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Crunch">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Crunch"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Lead">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Lead"/>
+        <Controls use="Amp"/>
+      </Module>
+    </Group>
+
+    <Group name="Cabs" icon="cab">
+      <Module name="Clean Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Clean"/>
+        <Controls use="Cab"/>
+      </Module>
+      <Module name="Crunch Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Crunch"/>
+        <Controls use="Cab"/>
+      </Module>
+      <Module name="Lead Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Lead"/>
+        <Controls use="Cab"/>
+      </Module>
+    </Group>
+
+    <Group name="Pedals" icon="pedal">
+      <!-- The synth section has no switch of its own, so the section's switch turns it on and off -->
+      <Module name="Overlord Synth">
+        <Set param="Active Synth Section" value="On"/>
+        <Controls>
+          <Switch param="Active Synth Section" label="Synth" switch="1"/>
+          <Knob param="Synth Mix" label="Mix" knob="1"/>
+          <Knob param="Synth Sensitivity" label="Sensitivity" knob="2"/>
+          <Knob param="Synth Glide" label="Glide" knob="3"/>
+          <Knob param="Synth Filter Cutoff" label="Cutoff" knob="4"/>
+          <Knob param="Synth Filter Resonance" label="Resonance" knob="5"/>
+          <Knob param="Synth Filter Env Amount" label="Envelope" knob="6"/>
+          <Knob param="Synth Output" label="Output" knob="7"/>
+          <Choice param="Synth Osc 1 Waveform" label="Osc 1" style="list"
+                  labels="Sine|Triangle|Sawtooth|Square|Pulse|White Noise|Pink Noise"/>
+          <Choice param="Synth Osc 2 Waveform" label="Osc 2" style="list"
+                  labels="Sine|Triangle|Sawtooth|Square|Pulse|White Noise|Pink Noise"/>
+        </Controls>
+      </Module>
+      <Module name="Twin Blade Compressor">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Twin Blade Dual Compressor Active" value="On"/>
+        <Controls>
+          <Switch param="Twin Blade Dual Compressor Active" label="Comp" switch="1"/>
+          <Knob param="Twin Blade Dual Compressor In" label="In" knob="1"/>
+          <Knob param="Twin Blade Dual Compressor Out" label="Out" knob="2"/>
+          <Knob param="Twin Blade Dual Compressor Dry" label="Dry" knob="3"/>
+          <Knob param="Twin Blade Dual Compressor Att/Rel 1" label="Att/Rel 1" knob="4"/>
+          <Knob param="Twin Blade Dual Compressor Thru" label="Thru" knob="5"/>
+          <Knob param="Twin Blade Dual Compressor Att/Rel 2" label="Att/Rel 2" knob="6"/>
+        </Controls>
+      </Module>
+      <Module name="Chaos Bed Octaver">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Chaos Bed Octaver Active" value="On"/>
+        <Controls>
+          <Switch param="Chaos Bed Octaver Active" label="Octaver" switch="1"/>
+          <Knob param="Chaos Bed Octaver Direct Level" label="Direct" knob="1"/>
+          <Knob param="Chaos Bed Octaver Oct Up" label="Oct Up" knob="2"/>
+          <Knob param="Chaos Bed Octaver Oct Down" label="Oct Down" knob="3"/>
+          <Choice param="Chaos Bed Octaver Mode" label="Mode"/>
+        </Controls>
+      </Module>
+      <Module name="Colossus Fuzz">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Colossus Fuzz Active" value="On"/>
+        <Controls>
+          <Switch param="Colossus Fuzz Active" label="Fuzz" switch="1"/>
+          <Knob param="Colossus Fuzz Fuzz" label="Fuzz" knob="1"/>
+          <Knob param="Colossus Fuzz Level" label="Level" knob="2"/>
+          <Knob param="Colossus Fuzz Bass" label="Bass" knob="3"/>
+          <Knob param="Colossus Fuzz Treble" label="Treble" knob="4"/>
+          <Choice param="Colossus Fuzz Mode" label="Mode"/>
+        </Controls>
+      </Module>
+      <Module name="Paragon Overdrive">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Paragon Overdrive Active" value="On"/>
+        <Controls>
+          <Switch param="Paragon Overdrive Active" label="Drive" switch="1"/>
+          <Knob param="Paragon Overdrive Drive" label="Drive" knob="1"/>
+          <Knob param="Paragon Overdrive Level" label="Level" knob="2"/>
+          <Knob param="Paragon Overdrive Bass" label="Bass" knob="3"/>
+          <Knob param="Paragon Overdrive Treble" label="Treble" knob="4"/>
+          <Choice param="Paragon Overdrive Mode" label="Mode"/>
+        </Controls>
+      </Module>
+      <!-- In Single mode the delay only has its left time -->
+      <Module name="Atlas Delay">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Atlas Delay Active" value="On"/>
+        <Controls>
+          <Switch param="Atlas Delay Active" label="Delay" switch="1"/>
+          <Knob param="Atlas Delay Mix" label="Mix" knob="1"/>
+          <Knob param="Atlas Delay Feedback" label="Feedback" knob="2"/>
+          <Show param="Atlas Delay Sync" value="Free">
+            <Knob param="Atlas Delay Time L" label="Time" knob="3"/>
+            <Show param="Atlas Delay Mode" value="Dual">
+              <Knob param="Atlas Delay Time R" label="Time R" knob="4"/>
+            </Show>
+          </Show>
+          <Show param="Atlas Delay Sync" value="DAW">
+            <Knob param="Atlas Delay Sync Note L" label="Note" knob="3"/>
+            <Show param="Atlas Delay Mode" value="Dual">
+              <Knob param="Atlas Delay Sync Note R" label="Note R" knob="4"/>
+            </Show>
+          </Show>
+          <Show param="Atlas Delay Sync" value="Tap">
+            <Knob param="Atlas Delay Tempo" label="Tempo" knob="3"/>
+            <Knob param="Atlas Delay Sync Note L" label="Note"/>
+            <Show param="Atlas Delay Mode" value="Dual">
+              <Knob param="Atlas Delay Sync Note R" label="Note R" knob="4"/>
+            </Show>
+          </Show>
+          <Knob param="Atlas Delay Icicles" label="Icicles" knob="5"/>
+          <Knob param="Atlas Delay Low Cut" label="Low Cut" knob="6"/>
+          <Knob param="Atlas Delay High Cut" label="High Cut" knob="7"/>
+          <Choice param="Atlas Delay Sync" label="Sync"/>
+          <Choice param="Atlas Delay Mode" label="Mode"/>
+        </Controls>
+      </Module>
+      <Module name="Aeons Reverb">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Aeons Reverb Active" value="On"/>
+        <Controls>
+          <Switch param="Aeons Reverb Active" label="Reverb" switch="1"/>
+          <Knob param="Aeons Reverb Mix" label="Mix" knob="1"/>
+          <Knob param="Aeons Reverb Decay" label="Decay" knob="2"/>
+          <Knob param="Aeons Reverb Low Cut" label="Low Cut" knob="3"/>
+          <Knob param="Aeons Reverb High Cut" label="High Cut" knob="4"/>
+          <Switch param="Aeons Reverb Freeze" label="Freeze"/>
+          <Knob param="Aeons Reverb Freeze Volume" label="Freeze Level" knob="5"/>
+          <Knob param="Aeons Reverb Freeze Pitch" label="Freeze Pitch" knob="6"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <!-- Each band's gain is on a knob; its frequency and the filters are on the screen only -->
+    <Module name="EQ" icon="eq">
+      <Set param="Active EQ Section" value="On"/>
+      <Set param="Amp Type" value="Lead"/>
+      <Set param="Lead EQ Active" value="On"/>
+      <Controls>
+        <Switch param="Lead EQ Active" label="EQ" switch="1"/>
+        <Knob param="Lead EQ HPF" label="Low Cut"/>
+        <Knob param="Lead EQ Lo Freq" label="Freq"/>
+        <Knob param="Lead EQ Lo Gain" label="Low" knob="1"/>
+        <Knob param="Lead EQ Lo-Mid Freq" label="Freq"/>
+        <Knob param="Lead EQ Lo-Mid Gain" label="Low Mid" knob="2"/>
+        <Knob param="Lead EQ Hi-Mid Freq" label="Freq"/>
+        <Knob param="Lead EQ Hi-Mid Gain" label="High Mid" knob="3"/>
+        <Knob param="Lead EQ Hi Freq" label="Freq"/>
+        <Knob param="Lead EQ Hi Gain" label="High" knob="4"/>
+        <Knob param="Lead EQ LPF" label="High Cut"/>
+      </Controls>
+    </Module>
+
+    <Module name="Noise Gate" icon="dynamics">
+      <Set param="Gate Active" value="On"/>
+      <Controls>
+        <Switch param="Gate Active" label="Gate" switch="1"/>
+        <Knob param="Gate Threshold" label="Threshold" knob="1"/>
+      </Controls>
+    </Module>
+  </Modules>
+</PluginControl>

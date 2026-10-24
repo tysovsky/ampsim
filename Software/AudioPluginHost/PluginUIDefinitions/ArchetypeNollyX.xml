@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Archetype Nolly X: four amps (Clean, Crunch, Rhythm and Lead), each with its own cab and its
+  own 9-band EQ; a compressor, two overdrives and a short delay in front of them; and a delay
+  and reverb after them.
+
+  The amp chooses the cab while the two are linked, and the EQ always. So each cab module links
+  them and picks its amp (with the amp section off) to have that amp's cab, and its mics' types
+  are that amp's. Each amp's cab offers six mics twice over, for the cab's two speakers; the
+  plugin names both sets the same, so the lists here call them A and B. The EQ module uses the
+  Rhythm amp's EQ, whose bands are at the Original or Nolly's Mod frequencies.
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Archetype Nolly X">
+  <Controls use="Amp">
+    <Choice param="Amp Type" label="Amp"/>
+  </Controls>
+
+  <Modules>
+    <!-- Each amp module picks its amp, so it only shows that amp's knobs -->
+    <Controls name="Amp">
+      <Show param="Amp Type" value="Clean">
+        <Knob param="Clean Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Clean Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Clean Amp Middle" label="Middle" knob="3"/>
+        <Knob param="Clean Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Clean Amp Master" label="Master" knob="5"/>
+        <Knob param="Clean Amp Output" label="Output" knob="6"/>
+        <Switch param="Clean Amp Bright" label="Bright" switch="1"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Knob param="Crunch Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Crunch Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Crunch Amp Mid" label="Middle" knob="3"/>
+        <Knob param="Crunch Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Crunch Amp Presence" label="Presence" knob="5"/>
+        <Knob param="Crunch Amp Depth" label="Depth" knob="6"/>
+        <Knob param="Crunch Amp Master" label="Master" knob="7"/>
+        <Knob param="Crunch Amp Output" label="Output"/>
+        <Switch param="Crunch Amp Bright" label="Bright" switch="1"/>
+      </Show>
+      <Show param="Amp Type" value="Rhythm">
+        <Knob param="Rhythm Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Rhythm Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Rhythm Amp Mid" label="Middle" knob="3"/>
+        <Knob param="Rhythm Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Rhythm Amp Presence" label="Presence" knob="5"/>
+        <Knob param="Rhythm Amp Resonance" label="Resonance" knob="6"/>
+        <Knob param="Rhythm Amp Master" label="Master" knob="7"/>
+        <Knob param="Rhythm Amp Output" label="Output"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Knob param="Lead Amp Gain" label="Gain" knob="1"/>
+        <Knob param="Lead Amp Bass" label="Bass" knob="2"/>
+        <Knob param="Lead Amp Middle" label="Middle" knob="3"/>
+        <Knob param="Lead Amp Treble" label="Treble" knob="4"/>
+        <Knob param="Lead Amp Master" label="Master" knob="5"/>
+        <Knob param="Lead Amp Output" label="Output" knob="6"/>
+      </Show>
+    </Controls>
+
+    <Controls name="Cab">
+      <Switch param="Cab L Active" label="Mic 1"/>
+      <Show param="Amp Type" value="Clean">
+        <Choice param="Clean Amp Cab Mic L Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Choice param="Crunch Amp Cab Mic L Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Rhythm">
+        <Choice param="Rhythm Amp Cab Mic L Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Choice param="Lead Amp Cab Mic L Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Knob param="Cab L Position" label="Position" knob="1"/>
+      <Knob param="Cab L Distance" label="Distance" knob="2"/>
+      <Knob param="Cab L Level" label="Level" knob="3"/>
+      <Switch param="Cab R Active" label="Mic 2"/>
+      <Show param="Amp Type" value="Clean">
+        <Choice param="Clean Amp Cab Mic R Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Crunch">
+        <Choice param="Crunch Amp Cab Mic R Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Rhythm">
+        <Choice param="Rhythm Amp Cab Mic R Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Show param="Amp Type" value="Lead">
+        <Choice param="Lead Amp Cab Mic R Type" label="Type" style="list"
+                labels="Dynamic 57 A|Dynamic 421 A|Condenser 184 A|Condenser 414 A|Ribbon 121 A|Ribbon 160 A|Dynamic 57 B|Dynamic 421 B|Condenser 184 B|Condenser 414 B|Ribbon 121 B|Ribbon 160 B|Custom IR"/>
+      </Show>
+      <Knob param="Cab R Position" label="Position" knob="4"/>
+      <Knob param="Cab R Distance" label="Distance" knob="5"/>
+      <Knob param="Cab R Level" label="Level" knob="6"/>
+    </Controls>
+
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+      <Set param="Active Pre FX Section" value="Off"/>
+      <Set param="Compressor Active" value="Off"/>
+      <Set param="Overdrive-1 Active" value="Off"/>
+      <Set param="Delay-1 Active" value="Off"/>
+      <Set param="Overdrive-2 Active" value="Off"/>
+      <Set param="Active Amp Section" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+      <Set param="Active EQ Section" value="Off"/>
+      <Set param="Active Post FX Section" value="Off"/>
+      <Set param="Delay-2 Active" value="Off"/>
+      <Set param="Reverb Active" value="Off"/>
+    </Off>
+
+    <Group name="Amps" icon="amp">
+      <Module name="Clean">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Clean"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Crunch">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Crunch"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Rhythm">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Rhythm"/>
+        <Controls use="Amp"/>
+      </Module>
+      <Module name="Lead">
+        <Set param="Active Amp Section" value="On"/>
+        <Set param="Amp Type" value="Lead"/>
+        <Controls use="Amp"/>
+      </Module>
+    </Group>
+
+    <Group name="Cabs" icon="cab">
+      <Module name="Clean Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Clean"/>
+        <Controls use="Cab"/>
+      </Module>
+      <Module name="Crunch Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Crunch"/>
+        <Controls use="Cab"/>
+      </Module>
+      <Module name="Rhythm Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Rhythm"/>
+        <Controls use="Cab"/>
+      </Module>
+      <Module name="Lead Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp/Cab Linked" value="On"/>
+        <Set param="Amp Type" value="Lead"/>
+        <Controls use="Cab"/>
+      </Module>
+    </Group>
+
+    <!-- Delay 1 is a short delay in front of the amp, and Delay 2 the full one after it -->
+    <Group name="Pedals" icon="pedal">
+      <Module name="Compressor">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Compressor Active" value="On"/>
+        <Controls>
+          <Switch param="Compressor Active" label="Comp" switch="1"/>
+          <Knob param="Compressor Compression" label="Compression" knob="1"/>
+          <Knob param="Compressor Level" label="Level" knob="2"/>
+          <Choice param="Compressor Attack" label="Attack"/>
+        </Controls>
+      </Module>
+      <Module name="Overdrive 1">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Overdrive-1 Active" value="On"/>
+        <Controls>
+          <Switch param="Overdrive-1 Active" label="Drive" switch="1"/>
+          <Knob param="Overdrive-1 Drive" label="Drive" knob="1"/>
+          <Knob param="Overdrive-1 Tone" label="Tone" knob="2"/>
+          <Knob param="Overdrive-1 Level" label="Level" knob="3"/>
+          <Switch param="Overdrive-1 Bright" label="Bright"/>
+        </Controls>
+      </Module>
+      <Module name="Delay 1">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Delay-1 Active" value="On"/>
+        <Controls>
+          <Switch param="Delay-1 Active" label="Delay" switch="1"/>
+          <Knob param="Delay-1 Mix" label="Mix" knob="1"/>
+          <Knob param="Delay-1 Feedback" label="Feedback" knob="2"/>
+          <Show param="Delay-1 Sync" value="Ms">
+            <Knob param="Delay-1 Time" label="Time" knob="3"/>
+          </Show>
+          <Show param="Delay-1 Sync" value="Note">
+            <Knob param="Delay-1 SyncNote" label="Note" knob="3"/>
+          </Show>
+          <Knob param="Delay-1 Tone" label="Tone" knob="4"/>
+          <Choice param="Delay-1 Sync" label="Sync"/>
+        </Controls>
+      </Module>
+      <Module name="Overdrive 2">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Overdrive-2 Active" value="On"/>
+        <Controls>
+          <Switch param="Overdrive-2 Active" label="Drive" switch="1"/>
+          <Knob param="Overdrive-2 Gain" label="Gain" knob="1"/>
+          <Knob param="Overdrive-2 Bass" label="Bass" knob="2"/>
+          <Knob param="Overdrive-2 Treble" label="Treble" knob="3"/>
+          <Knob param="Overdrive-2 Level" label="Level" knob="4"/>
+        </Controls>
+      </Module>
+      <Module name="Delay 2">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Delay-2 Active" value="On"/>
+        <Controls>
+          <Switch param="Delay-2 Active" label="Delay" switch="1"/>
+          <Knob param="Delay-2 Mix" label="Mix" knob="1"/>
+          <Knob param="Delay-2 Feedback" label="Feedback" knob="2"/>
+          <Show param="Delay-2 Sync" value="Free">
+            <Knob param="Delay-2 Time" label="Time" knob="3"/>
+          </Show>
+          <Show param="Delay-2 Sync" value="Daw">
+            <Knob param="Delay-2 Note" label="Note" knob="3"/>
+          </Show>
+          <Show param="Delay-2 Sync" value="Tap">
+            <Knob param="Delay-2 Tempo" label="Tempo" knob="3"/>
+            <Knob param="Delay-2 Note" label="Note"/>
+          </Show>
+          <Knob param="Delay-2 Mod" label="Mod" knob="4"/>
+          <Knob param="Delay-2 Low Cut" label="Low Cut" knob="5"/>
+          <Knob param="Delay-2 High Cut" label="High Cut" knob="6"/>
+          <Choice param="Delay-2 Sync" label="Sync"/>
+          <Switch param="Delay-2 Ping Pong" label="Ping Pong"/>
+        </Controls>
+      </Module>
+      <Module name="Reverb">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Reverb Active" value="On"/>
+        <Controls>
+          <Switch param="Reverb Active" label="Reverb" switch="1"/>
+          <Knob param="Reverb Mix" label="Mix" knob="1"/>
+          <Knob param="Reverb Decay" label="Decay" knob="2"/>
+          <Knob param="Reverb Low Cut" label="Low Cut" knob="3"/>
+          <Knob param="Reverb High Cut" label="High Cut" knob="4"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <!-- The knobs take the middle seven bands; the outer two and the filters are on the screen only -->
+    <Module name="Graphic EQ" icon="eq">
+      <Set param="Active EQ Section" value="On"/>
+      <Set param="Amp Type" value="Rhythm"/>
+      <Set param="Rhythm Amp EQ Active" value="On"/>
+      <Controls>
+        <Switch param="Rhythm Amp EQ Active" label="EQ" switch="1"/>
+        <Knob param="Rhythm Amp EQ High Pass" label="Low Cut"/>
+        <Show param="Rhythm Amp EQ Type" value="Original">
+          <Fader param="Rhythm Amp EQ Band 1" label="65"/>
+          <Fader param="Rhythm Amp EQ Band 2" label="125" knob="1"/>
+          <Fader param="Rhythm Amp EQ Band 3" label="250" knob="2"/>
+          <Fader param="Rhythm Amp EQ Band 4" label="500" knob="3"/>
+          <Fader param="Rhythm Amp EQ Band 5" label="1k" knob="4"/>
+          <Fader param="Rhythm Amp EQ Band 6" label="2k" knob="5"/>
+          <Fader param="Rhythm Amp EQ Band 7" label="4k" knob="6"/>
+          <Fader param="Rhythm Amp EQ Band 8" label="8k" knob="7"/>
+          <Fader param="Rhythm Amp EQ Band 9" label="16k"/>
+        </Show>
+        <Show param="Rhythm Amp EQ Type" value="Mod">
+          <Fader param="Rhythm Amp EQ Band 1" label="75"/>
+          <Fader param="Rhythm Amp EQ Band 2" label="150" knob="1"/>
+          <Fader param="Rhythm Amp EQ Band 3" label="250" knob="2"/>
+          <Fader param="Rhythm Amp EQ Band 4" label="400" knob="3"/>
+          <Fader param="Rhythm Amp EQ Band 5" label="800" knob="4"/>
+          <Fader param="Rhythm Amp EQ Band 6" label="1.5k" knob="5"/>
+          <Fader param="Rhythm Amp EQ Band 7" label="4.5k" knob="6"/>
+          <Fader param="Rhythm Amp EQ Band 8" label="8k" knob="7"/>
+          <Fader param="Rhythm Amp EQ Band 9" label="12k"/>
+        </Show>
+        <Knob param="Rhythm Amp EQ Low Pass" label="High Cut"/>
+        <Choice param="Rhythm Amp EQ Type" label="Bands"/>
+      </Controls>
+    </Module>
+
+    <Module name="Noise Gate" icon="dynamics">
+      <Set param="Gate Active" value="On"/>
+      <Controls>
+        <Switch param="Gate Active" label="Gate" switch="1"/>
+        <Knob param="Gate Threshold" label="Threshold" knob="1"/>
+      </Controls>
+    </Module>
+  </Modules>
+</PluginControl>

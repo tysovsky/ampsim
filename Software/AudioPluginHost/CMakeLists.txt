@@ -120,11 +120,13 @@ elseif(WIN32)
     message(STATUS "ASIO_SDK_DIR not set: building without ASIO support")
 endif()
 
-# The app reads plugin definitions (control panels, modules) from a folder next to it
-add_custom_command(TARGET AudioPluginHost POST_BUILD
+# The app reads plugin definitions (control panels, modules) from a folder next to it. They're
+# copied on every build, so a changed or new definition gets there without the app relinking.
+add_custom_target(AudioPluginHostDefinitions ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_CURRENT_SOURCE_DIR}/PluginUIDefinitions"
             "$<TARGET_FILE_DIR:AudioPluginHost>/PluginUIDefinitions")
+add_dependencies(AudioPluginHostDefinitions AudioPluginHost)
 
 target_link_libraries(AudioPluginHost PRIVATE
     AudioPluginHostData

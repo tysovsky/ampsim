@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fortin Nameless Suite X: the Fortin Nameless amp with a noise gate pedal (Zuul), an
+  overdrive (HexDrive) and a boost (Grind) in front of it, a cab, a 9-band graphic EQ, and a
+  delay and reverb after it.
+
+  The amp's Low input skips its first gain stage, so Gain I is only there with the High input.
+  Pull Gain adds a further clipping stage.
+
+  See ArchetypeTimHensonX.xml for how modules, icons and controls work.
+-->
+<PluginControl name="Fortin Nameless Suite X">
+  <Controls use="Amp"/>
+
+  <Modules>
+    <Controls name="Amp">
+      <Show param="Amp Input" value="High">
+        <Knob param="Amp Gain I" label="Gain I" knob="1"/>
+      </Show>
+      <Knob param="Amp Gain II" label="Gain II" knob="2"/>
+      <Knob param="Amp Bass" label="Bass" knob="3"/>
+      <Knob param="Amp Middle" label="Middle" knob="4"/>
+      <Knob param="Amp Treble" label="Treble" knob="5"/>
+      <Knob param="Amp Presence" label="Presence" knob="6"/>
+      <Knob param="Amp MVC" label="Master" knob="7"/>
+      <Choice param="Amp Input" label="Input"/>
+      <Choice param="Amp Pull Gain" label="Pull Gain" switch="1"/>
+    </Controls>
+
+    <Off>
+      <Set param="Gate Active" value="Off"/>
+      <Set param="Doubler Active" value="Off"/>
+      <Set param="Active Pre FX Section" value="Off"/>
+      <Set param="Zuul Active" value="Off"/>
+      <Set param="HexDrive Active" value="Off"/>
+      <Set param="Grind Active" value="Off"/>
+      <Set param="Active Amp Section" value="Off"/>
+      <Set param="Active Cab Section" value="Off"/>
+      <Set param="Active EQ Section" value="Off"/>
+      <Set param="Active Post FX Section" value="Off"/>
+      <Set param="Delay Active" value="Off"/>
+      <Set param="Reverb Active" value="Off"/>
+    </Off>
+
+    <Module name="Nameless" icon="amp">
+      <Set param="Active Amp Section" value="On"/>
+      <Controls use="Amp"/>
+    </Module>
+
+    <Module name="Cab" icon="cab">
+      <Set param="Active Cab Section" value="On"/>
+      <Controls>
+        <Switch param="Cab L Active" label="Mic 1"/>
+        <Choice param="Cab L Mic Type" label="Type" style="list"/>
+        <Knob param="Cab L Position" label="Position" knob="1"/>
+        <Knob param="Cab L Distance" label="Distance" knob="2"/>
+        <Knob param="Cab L Level" label="Level" knob="3"/>
+        <Switch param="Cab R Active" label="Mic 2"/>
+        <Choice param="Cab R Mic Type" label="Type" style="list"/>
+        <Knob param="Cab R Position" label="Position" knob="4"/>
+        <Knob param="Cab R Distance" label="Distance" knob="5"/>
+        <Knob param="Cab R Level" label="Level" knob="6"/>
+      </Controls>
+    </Module>
+
+    <Group name="Pedals" icon="pedal">
+      <Module name="Zuul Gate">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Zuul Active" value="On"/>
+        <Controls>
+          <Switch param="Zuul Active" label="Zuul" switch="1"/>
+          <Knob param="Zuul Threshold" label="Threshold" knob="1"/>
+        </Controls>
+      </Module>
+      <Module name="HexDrive">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="HexDrive Active" value="On"/>
+        <Controls>
+          <Switch param="HexDrive Active" label="Drive" switch="1"/>
+          <Knob param="HexDrive Drive" label="Drive" knob="1"/>
+          <Knob param="HexDrive Tone" label="Tone" knob="2"/>
+          <Knob param="HexDrive Level" label="Level" knob="3"/>
+        </Controls>
+      </Module>
+      <Module name="Grind Boost">
+        <Set param="Active Pre FX Section" value="On"/>
+        <Set param="Grind Active" value="On"/>
+        <Controls>
+          <Switch param="Grind Active" label="Boost" switch="1"/>
+          <Knob param="Grind Boost" label="Grind" knob="1"/>
+        </Controls>
+      </Module>
+      <Module name="Delay">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Delay Active" value="On"/>
+        <Controls>
+          <Switch param="Delay Active" label="Delay" switch="1"/>
+          <Knob param="Delay Mix" label="Mix" knob="1"/>
+          <Knob param="Delay Feedback" label="Feedback" knob="2"/>
+          <Show param="Delay Sync Mode" value="Free">
+            <Knob param="Delay Time" label="Time" knob="3"/>
+          </Show>
+          <Show param="Delay Sync Mode" value="DAW">
+            <Knob param="Delay Sync Note" label="Note" knob="3"/>
+          </Show>
+          <Show param="Delay Sync Mode" value="Tap">
+            <Knob param="Delay Tempo" label="Tempo" knob="3"/>
+            <Knob param="Delay Sync Note" label="Note"/>
+          </Show>
+          <Knob param="Delay Tone" label="Tone" knob="4"/>
+          <Choice param="Delay Sync Mode" label="Sync"/>
+          <Switch param="Delay Ping Pong" label="Ping Pong"/>
+        </Controls>
+      </Module>
+      <Module name="Reverb">
+        <Set param="Active Post FX Section" value="On"/>
+        <Set param="Reverb Active" value="On"/>
+        <Controls>
+          <Switch param="Reverb Active" label="Reverb" switch="1"/>
+          <Knob param="Reverb Mix" label="Mix" knob="1"/>
+          <Knob param="Reverb Decay" label="Decay" knob="2"/>
+          <Knob param="Reverb Tone" label="Tone" knob="3"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <!-- The knobs take the middle seven bands; 65 Hz, 16 kHz and the filters are on the screen only -->
+    <Module name="Graphic EQ" icon="eq">
+      <Set param="Active EQ Section" value="On"/>
+      <Controls>
+        <Switch param="Active EQ Section" label="EQ" switch="1"/>
+        <Knob param="EQ High Pass" label="Low Cut"/>
+        <Fader param="EQ 65 Hz" label="65"/>
+        <Fader param="EQ 125 Hz" label="125" knob="1"/>
+        <Fader param="EQ 250 Hz" label="250" knob="2"/>
+        <Fader param="EQ 500 Hz" label="500" knob="3"/>
+        <Fader param="EQ 1 kHz" label="1k" knob="4"/>
+        <Fader param="EQ 2 kHz" label="2k" knob="5"/>
+        <Fader param="EQ 4 kHz" label="4k" knob="6"/>
+        <Fader param="EQ 8 kHz" label="8k" knob="7"/>
+        <Fader param="EQ 16 kHz" label="16k"/>
+        <Knob param="EQ Low Pass" label="High Cut"/>
+      </Controls>
+    </Module>
+
+    <Module name="Noise Gate" icon="dynamics">
+      <Set param="Gate Active" value="On"/>
+      <Controls>
+        <Switch param="Gate Active" label="Gate" switch="1"/>
+        <Knob param="Gate Threshold" label="Threshold" knob="1"/>
+      </Controls>
+    </Module>
+  </Modules>
+</PluginControl>
