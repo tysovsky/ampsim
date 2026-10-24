@@ -10,6 +10,10 @@ namespace
     constexpr int labelHeight = 20;
     constexpr int buttonHeight = 44;
 
+    // The widest a switch or list gets when its control has more room than it needs
+    constexpr int maxSwitchWidth = 140;
+    constexpr int maxListWidth = 240;
+
     // The number of steps of a parameter that has them; continuous parameters report a huge number
     int getNumSteps (const AudioProcessorParameter& parameter)
     {
@@ -93,16 +97,21 @@ protected:
             onChange();
     }
 
-    // The label along the top, with the number of the knob (round) or switch (square) that controls it
+    // The label along the top, followed by the number of the knob (round) or switch (square) that
+    // controls it, the two centred together
     void paintLabel (Graphics& g)
     {
         auto area = getLocalBounds().removeFromTop (labelHeight);
         const int number = knob > 0 ? knob : switchNumber;
+        const Font font (15.0f, Font::bold);
 
         if (number > 0)
         {
-            const auto badge = area.removeFromRight (labelHeight).toFloat().reduced (2.0f);
+            const int textWidth = jlimit (0, jmax (0, area.getWidth() - labelHeight - 4), font.getStringWidth (label));
+            auto group = area.withSizeKeepingCentre (textWidth + 4 + labelHeight, labelHeight);
+            const auto badge = group.removeFromRight (labelHeight).toFloat().reduced (2.0f);
             const auto accent = findColour (AppColourIds::signalPath);
+            area = group.withTrimmedRight (4);
 
             g.setColour (accent);
 
@@ -117,7 +126,7 @@ protected:
         }
 
         g.setColour (findColour (Label::textColourId));
-        g.setFont (Font (15.0f, Font::bold));
+        g.setFont (font);
         g.drawFittedText (label, area, Justification::centred, 1);
     }
 
@@ -184,8 +193,10 @@ public:
 
     void resized() override
     {
+        // The middle of the control, however wide the panel has made it
         const auto area = getLocalBounds().withTrimmedTop (labelHeight).withTrimmedBottom (labelHeight);
-        slider.setBounds (isFader ? area.withSizeKeepingCentre (40, area.getHeight()) : area);
+        slider.setBounds (area.withSizeKeepingCentre (isFader ? 40 : jmin (area.getWidth(), area.getHeight() + 24),
+                                                      area.getHeight()));
     }
 
 private:
@@ -224,7 +235,8 @@ public:
 
     void resized() override
     {
-        button.setBounds (getLocalBounds().withTrimmedTop (labelHeight).withSizeKeepingCentre (getWidth(), buttonHeight));
+        button.setBounds (getLocalBounds().withTrimmedTop (labelHeight)
+                                          .withSizeKeepingCentre (jmin (getWidth(), maxSwitchWidth), buttonHeight));
     }
 
 private:
@@ -316,13 +328,16 @@ public:
     void resized() override
     {
         auto area = getLocalBounds().withTrimmedTop (labelHeight).withSizeKeepingCentre (getWidth(), buttonHeight);
-        list.setBounds (area);
+        list.setBounds (area.withSizeKeepingCentre (jmin (area.getWidth(), maxListWidth), buttonHeight));
 
-        // Shared out in proportion to the width each would like, as the panel may have shrunk them
+        // The buttons grow with the room the panel gives them, up to half as wide again, and are
+        // shared out in proportion to the width each would like
+        area = area.withSizeKeepingCentre (jmin (area.getWidth(), getPreferredWidth() * 3 / 2), buttonHeight);
         const auto scale = (float) area.getWidth() / (float) jmax (1, getPreferredWidth());
 
-        for (auto* button : buttons)
-            button->setBounds (area.removeFromLeft (roundToInt ((float) getButtonWidth (*button) * scale)));
+        for (int i = 0; i < buttons.size(); ++i)
+            buttons[i]->setBounds (i + 1 < buttons.size() ? area.removeFromLeft (roundToInt ((float) getButtonWidth (*buttons[i]) * scale))
+                                                          : area);
     }
 
 private:
@@ -500,7 +515,7 @@ void BlockControlsPanel::resized()
     area.removeFromRight (padding);
     area.removeFromLeft (infoWidth + padding);
 
-    // Left to right, all shrunk together if they don't fit
+    // Left to right across the whole width, which is shared out in proportion to the room each would like
     Array<Control*> shown;
     int preferredWidth = 0;
 
@@ -514,13 +529,15 @@ void BlockControlsPanel::resized()
     }
 
     const int gaps = jmax (0, shown.size() - 1) * controlGap;
-    const auto scale = jmin (1.0f, (float) (area.getWidth() - gaps) / (float) jmax (1, preferredWidth));
+    const auto scale = (float) (area.getWidth() - gaps) / (float) jmax (1, preferredWidth);
     int x = area.getX();
 
-    for (auto* control : shown)
+    for (int i = 0; i < shown.size(); ++i)
     {
-        const int width = roundToInt ((float) control->getPreferredWidth() * scale);
-        control->setBounds (x, area.getY(), width, area.getHeight());
+        // The last one takes whatever's left after rounding, so the row ends at the edge
+        const int width = i + 1 < shown.size() ? roundToInt ((float) shown[i]->getPreferredWidth() * scale)
+                                               : area.getRight() - x;
+        shown[i]->setBounds (x, area.getY(), width, area.getHeight());
         x += width + controlGap;
     }
 }
