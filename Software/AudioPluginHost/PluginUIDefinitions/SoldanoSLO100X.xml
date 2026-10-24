@@ -4,7 +4,8 @@
   in front of it, a cab, a 9-band graphic EQ, and a delay and reverb after it.
 
   The amp's Normal channel is clean, or crunchy with its Crunch switch; the Overdrive channel
-  is the high-gain lead sound. Each channel has its own gain and master.
+  is the high-gain lead sound. Each channel has its own gain and master. The amp modules each
+  set the channel and voice, so their controls don't have them; the whole plugin's do.
 
   The plugin lists its chorus with the effects in front of the amp; in case it's actually one
   of the effects after it, the chorus turns on both sections (everything else in them stays off).
@@ -12,13 +13,16 @@
   See ArchetypeTimHensonX.xml for how modules, icons and controls work.
 -->
 <PluginControl name="Soldano SLO-100 X">
-  <Controls use="Amp"/>
+  <Controls use="Amp">
+    <Choice param="Amp Mode" label="Channel"/>
+    <Show param="Amp Mode" value="Normal">
+      <Choice param="Amp Crunch" label="Voice"/>
+    </Show>
+  </Controls>
 
   <Modules>
     <Controls name="Amp">
-      <Choice param="Amp Mode" label="Channel"/>
       <Show param="Amp Mode" value="Normal">
-        <Choice param="Amp Crunch" label="Voice"/>
         <Knob param="Amp Preamp Normal Gain" label="Gain" knob="1"/>
       </Show>
       <Show param="Amp Mode" value="Overdrive">

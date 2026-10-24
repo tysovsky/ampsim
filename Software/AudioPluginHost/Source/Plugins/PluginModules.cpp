@@ -26,11 +26,22 @@ namespace
         {
             const auto it = namedControls.find (controls->getStringAttribute ("use"));
 
-            if (it != namedControls.end())
+            if (it == namedControls.end())
+            {
+                DBG ("Plugin definition: no <Controls name=\"" << controls->getStringAttribute ("use") << "\">");
+                return nullptr;
+            }
+
+            if (controls->getNumChildElements() == 0)
                 return it->second;
 
-            DBG ("Plugin definition: no <Controls name=\"" << controls->getStringAttribute ("use") << "\">");
-            return nullptr;
+            // Controls of its own go before the shared ones
+            auto combined = std::make_shared<XmlElement> (*controls);
+
+            for (auto* shared : it->second->getChildIterator())
+                combined->addChildElement (new XmlElement (*shared));
+
+            return combined;
         }
 
         return std::make_shared<const XmlElement> (*controls);

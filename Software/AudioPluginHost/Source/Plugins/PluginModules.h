@@ -28,7 +28,8 @@ struct PluginModule
     Controls are shown on the block controls panel when a block is selected; see
     BlockControlsPanel for what a <Controls> element can contain. A
     <Controls use="name"/> stands for a <Controls name="name"> inside <Modules>,
-    for modules (or a module and the whole plugin) with the same controls.
+    for modules (or a module and the whole plugin) with the same controls. Any
+    controls inside it go before the shared ones.
 */
 class PluginModuleSet
 {
