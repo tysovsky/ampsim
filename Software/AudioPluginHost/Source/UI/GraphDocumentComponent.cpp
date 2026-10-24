@@ -486,8 +486,13 @@ void GraphDocumentComponent::toggleRecording()
             const auto [first, second] = output->getChosenChannels();
             const auto sameOutput = [first = first, second = second](const Recorder::Output& o) { return o.first == first && o.second == second; };
 
-            if (std::none_of(outputs.begin(), outputs.end(), sameOutput))
+            const auto existing = std::find_if(outputs.begin(), outputs.end(), sameOutput);
+
+            // Outputs sharing channels make one recording, named after whichever of them has a name
+            if (existing == outputs.end())
                 outputs.push_back({ first, second, output->getBlockName() });
+            else if (output->getCustomName().isNotEmpty() && existing->name == output->getChannelName())
+                existing->name = output->getCustomName();
         }
     }
 

@@ -31,6 +31,7 @@
 #include "ConnectorComponent.h"
 #include "PinComponent.h"
 #include "PluginPicker.h"
+#include "TextEntryPopup.h"
 
 class MainHostWindow;
 class ChainEndProcessor;
@@ -80,6 +81,9 @@ public:
 
     /** True for a chain's only input or only output, which removeFromChain() removes the chain with. */
     bool removesWholeChain (AudioProcessorGraph::NodeID) const;
+
+    /** Lets a name be typed for one of the chains' inputs or outputs, on the on-screen keyboard. */
+    void renameChainEnd (AudioProcessorGraph::NodeID);
 
     /** What kind of block a node is, for the icon on its tile. */
     BlockIcon getBlockIcon (AudioProcessorGraph::NodeID) const;
@@ -175,6 +179,7 @@ private:
     bool canAddParallel (const Chain&, size_t column) const;
     void layoutChains();
     void addChainEndsToOldGraph();
+    Component& getPopupParent();
     void showPluginPicker (std::function<void (const PluginChoice&)> onChosen);
     InsertPoint getSeriesInsertPoint (const Chain&, size_t gap) const;
     InsertPoint getParallelInsertPoint (const Chain&, size_t column) const;
@@ -184,9 +189,11 @@ private:
     KnownPluginList& knownPlugins;
     std::map<String, PluginModuleSet> moduleSets;   // by plugin name
     std::unique_ptr<PluginPicker> picker;
+    TextEntryPopup textEntry;
     std::unique_ptr<XmlElement> chainEndControls;   // the inputs' and outputs' channel choice
     std::vector<Chain> chains;
     OwnedArray<InsertButton> seriesButtons, parallelButtons;
+    bool isUpdatingComponents = false, needsAnotherUpdate = false;
     std::vector<std::pair<size_t, size_t>> seriesTargets, parallelTargets;  // each button's chain, and gap or column
 
     OwnedArray<PluginComponent> nodes;

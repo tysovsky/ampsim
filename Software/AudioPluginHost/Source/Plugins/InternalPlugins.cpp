@@ -572,7 +572,21 @@ std::pair<int, int> ChainEndProcessor::getChosenChannels() const noexcept
 
 String ChainEndProcessor::getBlockName() const
 {
+    return customName.isNotEmpty() ? customName : getChannelName();
+}
+
+String ChainEndProcessor::getChannelName() const
+{
     return blockNamePrefix + " " + channel->getCurrentChoiceName();
+}
+
+void ChainEndProcessor::setCustomName (const String& newName)
+{
+    if (newName != customName)
+    {
+        customName = newName;
+        updateHostDisplay();
+    }
 }
 
 void ChainEndProcessor::parameterValueChanged (int, float)
@@ -597,13 +611,20 @@ void ChainEndProcessor::fillInPluginDescription (PluginDescription& description)
 
 void ChainEndProcessor::getStateInformation (MemoryBlock& block)
 {
-    MemoryOutputStream (block, false).writeInt (channel->getIndex());
+    MemoryOutputStream stream (block, false);
+    stream.writeInt (channel->getIndex());
+    stream.writeString (customName);
 }
 
 void ChainEndProcessor::setStateInformation (const void* data, int size)
 {
+    MemoryInputStream stream (data, (size_t) size, false);
+
     if (size >= (int) sizeof (int))
-        *channel = jlimit (0, channel->choices.size() - 1, MemoryInputStream (data, (size_t) size, false).readInt());
+        *channel = jlimit (0, channel->choices.size() - 1, stream.readInt());
+
+    // Inputs and outputs saved before they could be named stop at the channel
+    setCustomName (stream.isExhausted() ? String() : stream.readString());
 }
 
 //==============================================================================

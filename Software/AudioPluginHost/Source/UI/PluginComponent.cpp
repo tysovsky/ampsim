@@ -9,14 +9,11 @@ PluginComponent::PluginComponent(GraphEditorPanel& p, AudioProcessorGraph::NodeI
     shadow.setShadowProperties(DropShadow(Colours::black.withAlpha(0.5f), 3, { 0, 1 }));
     setComponentEffect(&shadow);
 
-    if (auto f = graph.graph.getNodeForId(pluginID))
-    {
-        if (auto* processor = f->getProcessor())
-        {
-            if (auto* bypassParam = processor->getBypassParameter())
-                bypassParam->addListener(this);
-        }
-    }
+    pluginNode = graph.graph.getNodeForId(pluginID);
+
+    if (pluginNode != nullptr)
+        if (auto* bypassParam = pluginNode->getProcessor()->getBypassParameter())
+            bypassParam->addListener(this);
 
     setSize(150, 60);
 
@@ -27,14 +24,11 @@ PluginComponent::PluginComponent(GraphEditorPanel& p, AudioProcessorGraph::NodeI
 
 PluginComponent::~PluginComponent()
 {
-    if (auto f = graph.graph.getNodeForId(pluginID))
-    {
-        if (auto* processor = f->getProcessor())
-        {
-            if (auto* bypassParam = processor->getBypassParameter())
-                bypassParam->removeListener(this);
-        }
-    }
+    // The node's usually gone from the graph by now, but it's held, so its plugin is still there
+    // to stop telling this tile about its bypass
+    if (pluginNode != nullptr)
+        if (auto* bypassParam = pluginNode->getProcessor()->getBypassParameter())
+            bypassParam->removeListener(this);
 
     setLaneLevel(nullptr);
 }
@@ -227,9 +221,13 @@ void PluginComponent::update()
     setName(moduleName.isNotEmpty() ? moduleName : pluginName);
     subtitle = moduleName.isNotEmpty() ? pluginName : String();
 
-    // A chain's input or output goes by its channel, e.g. "Input 2"
+    // A chain's input or output goes by its channel, e.g. "Input 2", or by the name it's been given,
+    // with its channel underneath
     if (auto* end = dynamic_cast<ChainEndProcessor*>(f->getProcessor()))
+    {
         setName(end->getBlockName());
+        subtitle = end->getCustomName().isNotEmpty() ? end->getChannelName() : String();
+    }
     icon = panel.getBlockIcon(pluginID);
     repaint();
 }
@@ -270,22 +268,25 @@ void PluginComponent::showPopupMenu()
         return;
     }
 
-    // A chain's input or output can only be deleted; the last of either takes its chain with it
+    // A chain's input or output can be renamed or deleted; the last of either takes its chain with it
     if (node != nullptr && dynamic_cast<ChainEndProcessor*>(node->getProcessor()) != nullptr) {
         const bool isInput = dynamic_cast<ChainInputProcessor*>(node->getProcessor()) != nullptr;
         const bool deletesChain = panel.removesWholeChain(pluginID);
 
-        nodeActionWindow->showOkCancelBox(
+        nodeActionWindow->showYesNoCancelBox(
             MessageBoxIconType::NoIcon,
             getName(),
-            deletesChain ? "It's the chain's only " + String(isInput ? "input" : "output")
-                           + ", so the chain and every block in it will go too."
+            deletesChain ? "Deleting the chain's only " + String(isInput ? "input" : "output")
+                           + " deletes the chain and every block in it too."
                          : String(),
+            "Rename",
             deletesChain ? "Delete chain" : "Delete",
             "Cancel",
             nullptr,
             ModalCallbackFunction::create([this](int result) {
                 if (result == 1)
+                    panel.renameChainEnd(pluginID);
+                else if (result == 2)
                     panel.removeFromChain(pluginID);
             }));
         return;

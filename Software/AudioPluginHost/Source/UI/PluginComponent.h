@@ -55,6 +55,10 @@ private:
 
     // Held so the level stage outlives this component, which keeps its parameter listener valid
     AudioProcessorGraph::Node::Ptr laneLevelNode;
+
+    // The same for the plugin itself: a plugin that outlived its tile (e.g. while its window was
+    // still open) would otherwise be left calling a deleted tile when it was bypassed
+    AudioProcessorGraph::Node::Ptr pluginNode;
     bool isAdjustingLevel = false;
 
     GraphEditorPanel& panel;

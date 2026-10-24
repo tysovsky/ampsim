@@ -24,7 +24,7 @@ public:
     struct Output
     {
         int first = 0, second = -1;     // second is -1 for a single channel
-        String name;                    // what the file is named after, e.g. "Output 1+2"
+        String name;                    // what the file is named after, e.g. "Output 1+2" or "Main mix"
     };
 
     /** Starts recording the outputs that the device has. Returns false if it has none of them,

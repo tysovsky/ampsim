@@ -44,7 +44,7 @@ bool Recorder::start (const std::vector<Output>& outputs)
         if (output.first >= numOutputs || output.second >= numOutputs)
             continue;
 
-        const auto file = folder.getChildFile (startTime + " " + output.name + ".wav").getNonexistentSibling();
+        const auto file = folder.getChildFile (startTime + " " + File::createLegalFileName (output.name) + ".wav").getNonexistentSibling();
         std::unique_ptr<OutputStream> stream (file.createOutputStream());
 
         if (stream == nullptr)

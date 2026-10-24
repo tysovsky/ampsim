@@ -156,8 +156,17 @@ public:
     /** The choice for a channel, or for the pair it starts (an even channel), counting from 0. */
     static int getChoiceFor (int firstChannel, bool isPair) noexcept    { return isPair ? maxChannels + firstChannel / 2 : firstChannel; }
 
-    /** What its tile is called, e.g. "Input 1" or "Output 1+2". */
+    /** What it's called: the name it's been given, or else its channel. */
     String getBlockName() const;
+
+    /** Its channel, e.g. "Input 1" or "Output 1+2". */
+    String getChannelName() const;
+
+    /** A name of its own, e.g. "Guitar", or empty to go by its channel. It's saved with the
+        channel, and changing it tells the graph, like changing the channel does.
+    */
+    const String& getCustomName() const noexcept                                { return customName; }
+    void setCustomName (const String&);
 
     //==============================================================================
     void fillInPluginDescription (PluginDescription&) const override;
@@ -187,6 +196,7 @@ private:
 
     AudioParameterChoice* channel = nullptr;
     const String blockNamePrefix;
+    String customName;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainEndProcessor)
 };

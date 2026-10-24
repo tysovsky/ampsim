@@ -542,37 +542,61 @@ void GraphEditorPanel::changeListenerCallback (ChangeBroadcaster*)
 
 void GraphEditorPanel::updateComponents()
 {
-    addChainEndsToOldGraph();
-
-    // The device may have more channels than when the inputs and outputs were added
-    graph.connectDeviceChannels();
-
-    for (int i = nodes.size(); --i >= 0;)
-        if (graph.graph.getNodeForId(nodes.getUnchecked(i)->pluginID) == nullptr) {
-            Component::BailOutChecker checker(this);
-            listeners.callChecked(checker, &Listener::onNodeDeleted, nodes[i]);
-
-            if (activeComponent == nodes[i]) {
-                activeComponent = nullptr;
-            }
-
-            nodes.remove(i);
-        }
-
-    for (auto* fc : nodes)
-        fc->update();
-
-    for (auto* f : graph.graph.getNodes())
+    // Telling the listeners a tile has gone can resize this panel (the selected block's controls go
+    // with it), and resizing updates the components, as does laying out the chains when they need
+    // more room. Updating in the middle of an update would change the tiles under the loops going
+    // through them, so it's done again once this one has finished instead.
+    if (isUpdatingComponents)
     {
-        if (getComponentForPlugin (f->nodeID) == nullptr)
-        {
-            auto* comp = nodes.add (new PluginComponent (*this, f->nodeID));
-            addAndMakeVisible (comp);
-            comp->update();
-        }
+        needsAnotherUpdate = true;
+        return;
     }
 
-    layoutChains();
+    const ScopedValueSetter<bool> updating (isUpdatingComponents, true);
+
+    do
+    {
+        needsAnotherUpdate = false;
+
+        addChainEndsToOldGraph();
+
+        // The device may have more channels than when the inputs and outputs were added
+        graph.connectDeviceChannels();
+
+        // The tiles whose nodes have gone, found before any are removed
+        Array<PluginComponent*> gone;
+
+        for (auto* fc : nodes)
+            if (graph.graph.getNodeForId (fc->pluginID) == nullptr)
+                gone.add (fc);
+
+        for (auto* fc : gone)
+        {
+            Component::BailOutChecker checker (this);
+            listeners.callChecked (checker, &Listener::onNodeDeleted, fc);
+
+            if (activeComponent == fc)
+                activeComponent = nullptr;
+
+            nodes.removeObject (fc);
+        }
+
+        for (auto* fc : nodes)
+            fc->update();
+
+        for (auto* f : graph.graph.getNodes())
+        {
+            if (getComponentForPlugin (f->nodeID) == nullptr)
+            {
+                auto* comp = nodes.add (new PluginComponent (*this, f->nodeID));
+                addAndMakeVisible (comp);
+                comp->update();
+            }
+        }
+
+        layoutChains();
+    }
+    while (needsAnotherUpdate);
 
     listeners.call ([] (Listener& l) { l.onComponentsUpdated(); });
 }
@@ -906,16 +930,39 @@ void GraphEditorPanel::layoutChains()
     repaint();
 }
 
-void GraphEditorPanel::showPluginPicker (std::function<void (const PluginChoice&)> onChosen)
+Component& GraphEditorPanel::getPopupParent()
 {
-    // Over the whole window, title bar included, rather than just this panel
-    Component* parent = this;
-
+    // The whole window, title bar included, rather than just this panel
     if (auto* window = findParentComponentOfClass<ResizableWindow>())
         if (auto* content = window->getContentComponent())
-            parent = content;
+            return *content;
 
-    picker->show (*parent, std::move (onChosen));
+    return *this;
+}
+
+void GraphEditorPanel::showPluginPicker (std::function<void (const PluginChoice&)> onChosen)
+{
+    picker->show (getPopupParent(), std::move (onChosen));
+}
+
+void GraphEditorPanel::renameChainEnd (NodeID nodeID)
+{
+    auto* end = getChainEnd (nodeID);
+
+    if (end == nullptr)
+        return;
+
+    const auto title = dynamic_cast<ChainInputProcessor*> (end) != nullptr ? "Rename input" : "Rename output";
+
+    textEntry.show (getPopupParent(), title, end->getBlockName(), [this, nodeID] (const String& newName)
+    {
+        // Leaving it blank, or as its channel, goes back to calling it by its channel
+        if (auto* renamed = getChainEnd (nodeID))
+        {
+            const auto name = newName.trim();
+            renamed->setCustomName (name == renamed->getChannelName() ? String() : name);
+        }
+    });
 }
 
 void GraphEditorPanel::showPopupMenu (Point<int> mousePos)
