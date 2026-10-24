@@ -277,7 +277,7 @@ void PluginComponent::showPopupMenu()
             case 1:
             {
                 if (node)
-                    node->setBypassed(!node->isBypassed());
+                    graph.setNodeBypassed(pluginID, !node->isBypassed());
 
                 repaint();
                 break;

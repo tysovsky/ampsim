@@ -90,8 +90,6 @@ public:
             pluginButton.setShape(p, true, true, false);
         }
 
-        saveButton.setButtonText("Save");
-
         burgerButton.addListener(this);
         addAndMakeVisible(burgerButton);
 
@@ -100,9 +98,6 @@ public:
 
         titleLabel.setJustificationType(Justification::centredLeft);
         addAndMakeVisible(titleLabel);
-
-        saveButton.addListener(this);
-        addAndMakeVisible(saveButton);
 
         setOpaque(true);
         lookAndFeelChanged();
@@ -137,18 +132,13 @@ private:
         pluginButton.setBounds(r.removeFromRight(h + 16));
         pluginButton.setBorderSize(BorderSize<int>(h / 4));
 
-        saveButton.setBounds(r.withSizeKeepingCentre(120, h - 8));
-
         titleLabel.setFont(Font(static_cast<float> (h) * 0.5f, Font::plain));
-        titleLabel.setBounds(r.withRight(saveButton.getX()));
+        titleLabel.setBounds(r);
     }
 
     void buttonClicked(Button* b) override
     {
-        if (b == &saveButton) {
-            owner.graph->saveAsync(false, false, nullptr);
-        }
-        else if (b == &burgerButton) {
+        if (b == &burgerButton) {
             owner.showSettings();
         }
         else {
@@ -161,7 +151,6 @@ private:
     Label titleLabel{ "titleLabel", "Studio" };
     ShapeButton burgerButton{ "burgerButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
     ShapeButton pluginButton{ "pluginButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
-    TextButton saveButton;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TitleBarComponent)
 };

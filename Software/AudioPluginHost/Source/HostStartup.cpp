@@ -200,6 +200,11 @@ public:
                 fileToOpen = recentFiles.getFile (0);
         }
 
+        // Otherwise the file that a graph without one of its own is saved to. Without this, losing the
+        // list of recent files would start an empty graph, which would then be saved over the last chain.
+        if (! fileToOpen.existsAsFile())
+            fileToOpen = PluginGraph::getDefaultGraphFile();
+
         if (fileToOpen.existsAsFile())
             if (auto* graph = mainWindow->graphHolder.get())
                 if (auto* ioGraph = graph->graph.get())

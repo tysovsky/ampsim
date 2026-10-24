@@ -54,10 +54,17 @@ struct PluginDescriptionAndPreference
 //==============================================================================
 /**
     A collection of plugins and some connections between them.
+
+    Every change is saved to the graph's file as it happens: a change to what's in
+    the graph or how it's connected, to any plugin's parameters or state, or to a
+    node's bypass. Saving waits until there's been a moment without changes, so
+    turning a knob saves once it stops. A graph without a file of its own is saved
+    to getDefaultGraphFile().
 */
 class PluginGraph final : public FileBasedDocument,
                           public AudioProcessorListener,
-                          private ChangeListener
+                          private ChangeListener,
+                          private Timer
 {
 public:
     //==============================================================================
@@ -93,6 +100,9 @@ public:
     void setNodePosition (NodeID, Point<double>);
     Point<double> getNodePosition (NodeID) const;
 
+    /** Bypasses a node or brings it back, as a change to save. */
+    void setNodeBypassed (NodeID, bool shouldBeBypassed);
+
     //==============================================================================
     void clear();
 
@@ -101,8 +111,12 @@ public:
     bool closeAnyOpenPluginWindows();
 
     //==============================================================================
-    void audioProcessorParameterChanged (AudioProcessor*, int, float) override {}
-    void audioProcessorChanged (AudioProcessor*, const ChangeDetails&) override { changed(); }
+    // Called for the graph and for every plugin in it, possibly on the audio thread
+    void audioProcessorParameterChanged (AudioProcessor*, int, float) override  { markChanged(); }
+    void audioProcessorChanged (AudioProcessor*, const ChangeDetails&) override { changed(); markChanged(); }
+
+    /** Saves any changes that are waiting to be saved now, e.g. before quitting. */
+    void saveChanges();
 
     //==============================================================================
     std::unique_ptr<XmlElement> createXml() const;
@@ -121,6 +135,9 @@ public:
 
     static File getDefaultGraphDocumentOnMobile();
 
+    /** Where a graph that hasn't been given a file is saved: next to the app's settings. */
+    static File getDefaultGraphFile();
+
     //==============================================================================
     AudioProcessorGraph graph;
 
@@ -133,6 +150,14 @@ private:
 
     NodeID lastUID;
     NodeID getNextUID() noexcept;
+
+    std::atomic<bool> hasUnsavedChanges { false };
+    std::atomic<uint32> lastChangeTime { 0 };
+    String lastSavedText;     // what was last written, so changes that don't change anything aren't
+
+    void markChanged() noexcept;
+    void listenToNodes();
+    void timerCallback() override;
 
     void createNodeFromXml (const XmlElement&);
     void addPluginCallback (std::unique_ptr<AudioPluginInstance>,

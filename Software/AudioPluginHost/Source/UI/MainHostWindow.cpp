@@ -461,15 +461,9 @@ void MainHostWindow::tryToQuitApplication()
         if (graphHolder->graph->saveDocument (PluginGraph::getDefaultGraphDocumentOnMobile()))
             releaseAndQuit();
        #else
-        SafePointer<MainHostWindow> parent { this };
-        graphHolder->graph->saveIfNeededAndUserAgreesAsync ([parent, releaseAndQuit] (FileBasedDocument::SaveResult r)
-        {
-            if (parent == nullptr)
-                return;
-
-            if (r == FileBasedDocument::savedOk)
-                releaseAndQuit();
-        });
+        // Changes are saved as they happen, so there's nothing to ask; just save any still waiting
+        graphHolder->graph->saveChanges();
+        releaseAndQuit();
        #endif
 
         return;
@@ -603,6 +597,7 @@ void MainHostWindow::menuItemSelected (int menuItemID, int /*topLevelMenuIndex*/
             if (auto* graph = graphHolder->graph.get())
             {
                 SafePointer<MainHostWindow> parent { this };
+                graph->saveChanges();
                 graph->saveIfNeededAndUserAgreesAsync ([parent, recentFiles, menuItemID] (FileBasedDocument::SaveResult r)
                 {
                     if (parent == nullptr)
@@ -837,6 +832,7 @@ bool MainHostWindow::perform (const InvocationInfo& info)
         if (graphHolder != nullptr && graphHolder->graph != nullptr)
         {
             SafePointer<MainHostWindow> parent { this };
+            graphHolder->graph->saveChanges();
             graphHolder->graph->saveIfNeededAndUserAgreesAsync ([parent] (FileBasedDocument::SaveResult r)
             {
                 if (parent == nullptr)
@@ -852,6 +848,7 @@ bool MainHostWindow::perform (const InvocationInfo& info)
          if (graphHolder != nullptr && graphHolder->graph != nullptr)
          {
              SafePointer<MainHostWindow> parent { this };
+             graphHolder->graph->saveChanges();
              graphHolder->graph->saveIfNeededAndUserAgreesAsync ([parent] (FileBasedDocument::SaveResult r)
              {
                  if (parent == nullptr)
@@ -999,6 +996,7 @@ void MainHostWindow::filesDropped (const StringArray& files, int x, int y)
             if (auto* g = graphHolder->graph.get())
             {
                 SafePointer<MainHostWindow> parent;
+                g->saveChanges();
                 g->saveIfNeededAndUserAgreesAsync ([parent, g, firstFile] (FileBasedDocument::SaveResult r)
                 {
                     if (parent == nullptr)

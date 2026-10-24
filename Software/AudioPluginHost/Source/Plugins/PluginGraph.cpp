@@ -46,10 +46,16 @@ PluginGraph::PluginGraph (AudioPluginFormatManager& fm, KnownPluginList& kpl)
 {
     newDocument();
     graph.addListener (this);
+    startTimer (250);
 }
 
 PluginGraph::~PluginGraph()
 {
+    stopTimer();
+
+    for (auto* node : graph.getNodes())
+        node->getProcessor()->removeListener (this);
+
     graph.removeListener (this);
     graph.removeChangeListener (this);
     graph.clear();
@@ -64,6 +70,8 @@ PluginGraph::NodeID PluginGraph::getNextUID() noexcept
 void PluginGraph::changeListenerCallback (ChangeBroadcaster*)
 {
     changed();
+    markChanged();
+    listenToNodes();
 
     for (int i = activePluginWindows.size(); --i >= 0;)
         if (! graph.getNodes().contains (activePluginWindows.getUnchecked (i)->node))
@@ -218,6 +226,16 @@ void PluginGraph::setNodePosition (NodeID nodeID, Point<double> pos)
     }
 }
 
+void PluginGraph::setNodeBypassed (NodeID nodeID, bool shouldBeBypassed)
+{
+    if (auto* n = graph.getNodeForId (nodeID))
+    {
+        n->setBypassed (shouldBeBypassed);
+        changed();
+        markChanged();
+    }
+}
+
 Point<double> PluginGraph::getNodePosition (NodeID nodeID) const
 {
     if (auto* n = graph.getNodeForId (nodeID))
@@ -303,6 +321,7 @@ void PluginGraph::newDocument()
     {
         setChangedFlag (false);
         graph.addChangeListener (this);
+        listenToNodes();
     });
 }
 
@@ -317,6 +336,7 @@ Result PluginGraph::loadDocument (const File& file)
         {
             setChangedFlag (false);
             graph.addChangeListener (this);
+            listenToNodes();
         });
 
         return Result::ok();
@@ -333,6 +353,63 @@ Result PluginGraph::saveDocument (const File& file)
         return Result::fail ("Couldn't write to the file");
 
     return Result::ok();
+}
+
+File PluginGraph::getDefaultGraphFile()
+{
+    return getAppProperties().getUserSettings()->getFile().getSiblingFile ("Chain").withFileExtension (getFilenameSuffix());
+}
+
+//==============================================================================
+void PluginGraph::markChanged() noexcept
+{
+    lastChangeTime = Time::getMillisecondCounter();
+    hasUnsavedChanges = true;
+}
+
+void PluginGraph::listenToNodes()
+{
+    // Each plugin reports its own parameter and state changes. Adding a listener that's already
+    // there does nothing, so this can be called after any change to what's in the graph.
+    for (auto* node : graph.getNodes())
+        node->getProcessor()->addListener (this);
+}
+
+void PluginGraph::timerCallback()
+{
+    constexpr uint32 quietTimeBeforeSaving = 1000;    // milliseconds
+
+    if (hasUnsavedChanges && Time::getMillisecondCounter() - lastChangeTime >= quietTimeBeforeSaving)
+        saveChanges();
+}
+
+void PluginGraph::saveChanges()
+{
+    if (! hasUnsavedChanges.exchange (false) && ! hasChangedSinceSaved())
+        return;
+
+    if (getFile() == File())
+        setFile (getDefaultGraphFile());
+
+    const auto text = createXml()->toString();
+
+    // Plugins sometimes report changes that don't change their saved state
+    if (text != lastSavedText)
+    {
+        if (! getFile().replaceWithText (text))
+        {
+            DBG ("Couldn't save the graph to " << getFile().getFullPathName());
+            return;
+        }
+
+        lastSavedText = text;
+    }
+
+    setChangedFlag (false);
+
+    // So it's the graph that's opened next time
+    if (getLastDocumentOpened() != getFile())
+        setLastDocumentOpened (getFile());
 }
 
 File PluginGraph::getLastDocumentOpened()
@@ -427,6 +504,7 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) noexcep
         e->setAttribute ("x",        node->properties ["x"].toString());
         e->setAttribute ("y",        node->properties ["y"].toString());
         e->setAttribute ("useARA",   node->properties ["useARA"].toString());
+        e->setAttribute ("bypassed", node->isBypassed());
 
         // The part of the plugin this node was added as, e.g. one amp of an amp suite
         if (node->properties.contains ("module"))
@@ -554,6 +632,7 @@ void PluginGraph::createNodeFromXml (const XmlElement& xml)
             node->properties.set ("x", xml.getDoubleAttribute ("x"));
             node->properties.set ("y", xml.getDoubleAttribute ("y"));
             node->properties.set ("useARA", xml.getBoolAttribute ("useARA"));
+            node->setBypassed (xml.getBoolAttribute ("bypassed"));
 
             if (xml.hasAttribute ("module"))
                 node->properties.set ("module", xml.getStringAttribute ("module"));
