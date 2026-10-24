@@ -8,6 +8,7 @@ namespace
     constexpr int headerHeight = 52;
     constexpr int headerButtonWidth = 120;
     constexpr int rowHeight = 64;
+    constexpr int deleteButtonWidth = 64;
     constexpr int playButtonSize = 88;
 
     // e.g. "1:05", or "1:02:05" past an hour
@@ -152,6 +153,70 @@ private:
 };
 
 //==============================================================================
+// A bin, for deleting a recording
+class RecordingsPopup::DeleteButton final : public Button
+{
+public:
+    DeleteButton() : Button ("Delete")
+    {
+        setWantsKeyboardFocus (false);
+    }
+
+    void paintButton (Graphics& g, bool, bool isButtonDown) override
+    {
+        const auto size = jmin (24.0f, (float) jmin (getWidth(), getHeight()));
+        const auto box = getLocalBounds().toFloat().withSizeKeepingCentre (size, size);
+        const auto point = [&] (float x, float y) { return box.getRelativePoint (x, y); };
+
+        Path bin;
+        bin.startNewSubPath (point (0.08f, 0.22f));
+        bin.lineTo (point (0.92f, 0.22f));
+        bin.startNewSubPath (point (0.36f, 0.22f));
+        bin.lineTo (point (0.40f, 0.06f));
+        bin.lineTo (point (0.60f, 0.06f));
+        bin.lineTo (point (0.64f, 0.22f));
+        bin.startNewSubPath (point (0.18f, 0.22f));
+        bin.lineTo (point (0.24f, 0.94f));
+        bin.lineTo (point (0.76f, 0.94f));
+        bin.lineTo (point (0.82f, 0.22f));
+        bin.startNewSubPath (point (0.42f, 0.38f));
+        bin.lineTo (point (0.42f, 0.78f));
+        bin.startNewSubPath (point (0.58f, 0.38f));
+        bin.lineTo (point (0.58f, 0.78f));
+
+        g.setColour (isButtonDown ? Colour (0xffe0342c) : findColour (Label::textColourId).withAlpha (0.7f));
+        g.strokePath (bin, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+    }
+};
+
+//==============================================================================
+// What goes on top of each row of the list: its delete button, at the right-hand end
+class RecordingsPopup::RowControls final : public Component
+{
+public:
+    explicit RowControls (RecordingsPopup& p) : popup (p)
+    {
+        // Taps anywhere else in the row go through to the list, which opens the recording
+        setInterceptsMouseClicks (false, true);
+
+        deleteButton.onClick = [this] { popup.deleteRecording (file); };
+        addAndMakeVisible (deleteButton);
+    }
+
+    void setRecording (const File& recording)    { file = recording; }
+
+    void resized() override
+    {
+        deleteButton.setBounds (getLocalBounds().reduced (0, 4).removeFromRight (deleteButtonWidth));
+    }
+
+private:
+    RecordingsPopup& popup;
+    File file;
+    DeleteButton deleteButton;
+};
+
+//==============================================================================
 RecordingsPopup::RecordingsPopup (Recorder& r)
     : recorder (r), playButton (std::make_unique<PlayButton>()), seekBar (std::make_unique<SeekBar>())
 {
@@ -279,6 +344,8 @@ void RecordingsPopup::paintListBoxItem (int row, Graphics& g, int width, int hei
     g.setColour (findColour (TextEditor::backgroundColourId));
     g.fillRoundedRectangle (area.toFloat(), 8.0f);
 
+    // Room for the delete button on top, at the right-hand end
+    area.removeFromRight (deleteButtonWidth);
     area.reduce (16, 6);
     const auto textColour = findColour (Label::textColourId);
 
@@ -298,6 +365,42 @@ void RecordingsPopup::listBoxItemClicked (int row, const MouseEvent&)
 {
     if (isPositiveAndBelow (row, (int) recordings.size()))
         openPlayer (recordings[(size_t) row]);
+}
+
+Component* RecordingsPopup::refreshComponentForRow (int row, bool, Component* existingComponentToUpdate)
+{
+    std::unique_ptr<Component> existing (existingComponentToUpdate);
+
+    if (! isPositiveAndBelow (row, (int) recordings.size()))
+        return nullptr;
+
+    std::unique_ptr<RowControls> controls (dynamic_cast<RowControls*> (existing.release()));
+
+    if (controls == nullptr)
+        controls = std::make_unique<RowControls> (*this);
+
+    controls->setRecording (recordings[(size_t) row].file);
+    return controls.release();
+}
+
+void RecordingsPopup::deleteRecording (const File& file)
+{
+    // Later, as the list gets rid of rows it doesn't need any more, which could be the one with the
+    // button that's just been tapped
+    MessageManager::callAsync ([safeThis = SafePointer<RecordingsPopup> (this), file]
+    {
+        // To the Recycle Bin, so one that's deleted by mistake can be got back
+        if (! file.moveToTrash())
+            file.deleteFile();
+
+        if (safeThis == nullptr)
+            return;
+
+        safeThis->findRecordings();
+        safeThis->list.updateContent();
+        safeThis->list.repaint();
+        safeThis->emptyLabel.setVisible (safeThis->recordings.empty());
+    });
 }
 
 //==============================================================================

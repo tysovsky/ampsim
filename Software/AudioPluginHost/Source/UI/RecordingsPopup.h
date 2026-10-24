@@ -8,7 +8,8 @@
 /**
     A popup covering the window with the recordings made so far, newest first.
     Tapping one opens a player for it, with a play/pause button and a bar along
-    which it can be moved to any point. It plays on the first two outputs.
+    which it can be moved to any point. It plays on the first two outputs. Each
+    has a button to delete it, which moves the file to the Recycle Bin.
 */
 class RecordingsPopup final : public Component,
                               private ListBoxModel,
@@ -28,6 +29,8 @@ public:
 private:
     class PlayButton;
     class SeekBar;
+    class DeleteButton;
+    class RowControls;
 
     struct Recording
     {
@@ -40,10 +43,12 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, Graphics&, int width, int height, bool isSelected) override;
     void listBoxItemClicked (int row, const MouseEvent&) override;
+    Component* refreshComponentForRow (int row, bool isSelected, Component* existingComponentToUpdate) override;
 
     void timerCallback() override;
 
     void findRecordings();
+    void deleteRecording (const File&);
     void openPlayer (const Recording&);
     void closePlayer();
     std::vector<Component*> getPlayerParts();
