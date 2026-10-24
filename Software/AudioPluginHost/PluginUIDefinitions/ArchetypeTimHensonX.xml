@@ -17,6 +17,12 @@
   The plugin calls its amps Roses, Cherubs and Pink. Its factory presets use Roses for clean
   and acoustic sounds, Cherubs for clean-to-crunch rhythm, and Pink for leads and high gain.
   Each amp has its own 9-band EQ, which is the one the EQ section uses while that amp is chosen.
+
+  Cherubs and Pink each have their own cab, which the cab section uses while that amp is chosen:
+  two mics, each with its own type per amp, and a position, distance and level shared between
+  the two cabs. Roses has no cab section (the plugin hides it while Roses is chosen), so it has
+  no cab module and its amp module is a complete sound. The Cherubs and Pink amps leave their cab
+  off, for a cab module after them; each cab module picks its amp so the cab section uses its cab.
 -->
 <PluginControl name="Archetype Tim Henson X">
   <!-- The whole plugin: the amp and its knobs -->
@@ -72,7 +78,6 @@
     <Group name="Amps" icon="amp">
       <Module name="Roses (Clean)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Type" value="Roses"/>
         <Controls>
           <Knob param="Roses Amp Gain" label="Gain" knob="1"/>
@@ -86,7 +91,6 @@
       </Module>
       <Module name="Cherubs (Rhythm)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Type" value="Cherubs"/>
         <Controls>
           <Knob param="Cherubs Amp Gain" label="Gain" knob="1"/>
@@ -100,7 +104,6 @@
       </Module>
       <Module name="Pink (Lead)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Type" value="Pink"/>
         <Controls>
           <Knob param="Pink Amp Gain" label="Gain" knob="1"/>
@@ -110,6 +113,41 @@
           <Knob param="Pink Amp Presence" label="Presence" knob="5"/>
           <Knob param="Pink Amp Master" label="Master" knob="6"/>
           <Knob param="Pink Amp Output" label="Output" knob="7"/>
+        </Controls>
+      </Module>
+    </Group>
+
+    <Group name="Cabs" icon="cab">
+      <Module name="Cherubs Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Type" value="Cherubs"/>
+        <Controls>
+          <Switch param="Cab L Active" label="Mic 1"/>
+          <Choice param="Cherubs Amp Cab Mic L Type" label="Type" style="list"/>
+          <Knob param="Cab L Position" label="Position" knob="1"/>
+          <Knob param="Cab L Distance" label="Distance" knob="2"/>
+          <Knob param="Cab L Level" label="Level" knob="3"/>
+          <Switch param="Cab R Active" label="Mic 2"/>
+          <Choice param="Cherubs Amp Cab Mic R Type" label="Type" style="list"/>
+          <Knob param="Cab R Position" label="Position" knob="4"/>
+          <Knob param="Cab R Distance" label="Distance" knob="5"/>
+          <Knob param="Cab R Level" label="Level" knob="6"/>
+        </Controls>
+      </Module>
+      <Module name="Pink Cab">
+        <Set param="Active Cab Section" value="On"/>
+        <Set param="Amp Type" value="Pink"/>
+        <Controls>
+          <Switch param="Cab L Active" label="Mic 1"/>
+          <Choice param="Pink Amp Cab Mic L Type" label="Type" style="list"/>
+          <Knob param="Cab L Position" label="Position" knob="1"/>
+          <Knob param="Cab L Distance" label="Distance" knob="2"/>
+          <Knob param="Cab L Level" label="Level" knob="3"/>
+          <Switch param="Cab R Active" label="Mic 2"/>
+          <Choice param="Pink Amp Cab Mic R Type" label="Type" style="list"/>
+          <Knob param="Cab R Position" label="Position" knob="4"/>
+          <Knob param="Cab R Distance" label="Distance" knob="5"/>
+          <Knob param="Cab R Level" label="Level" knob="6"/>
         </Controls>
       </Module>
     </Group>
