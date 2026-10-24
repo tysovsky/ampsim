@@ -43,6 +43,9 @@ public:
     /** Takes the controls down. */
     void clear();
 
+    /** Changes the name shown for the block, e.g. after an input has been given another channel. */
+    void setBlockName (const String& name, const String& subtitle);
+
     bool isShowingBlock() const noexcept    { return node != nullptr; }
 
     /** Called when the close button is tapped. */

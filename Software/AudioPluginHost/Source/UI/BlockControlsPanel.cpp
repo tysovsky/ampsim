@@ -404,6 +404,16 @@ void BlockControlsPanel::showBlock (AudioProcessorGraph::Node::Ptr newNode, cons
     repaint();
 }
 
+void BlockControlsPanel::setBlockName (const String& newName, const String& newSubtitle)
+{
+    if (newName != name || newSubtitle != subtitle)
+    {
+        name = newName;
+        subtitle = newSubtitle;
+        repaint();
+    }
+}
+
 void BlockControlsPanel::clear()
 {
     stopTimer();

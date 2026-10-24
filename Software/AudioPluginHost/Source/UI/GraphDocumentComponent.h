@@ -82,6 +82,9 @@ private:
 
     std::unique_ptr<BlockControlsPanel> blockControls;
 
+    // The chains scroll, when there are too many to fit at a size that can be tapped
+    Viewport chainViewport;
+
     std::unique_ptr<AudioSettingsPopup> settingsPopup;
 
     //==============================================================================
@@ -90,6 +93,7 @@ private:
     //==============================================================================
     void onActiveComponentChange(PluginComponent* activeComponent) override;
     void onNodeDeleted(PluginComponent* removedComponent) override;
+    void onComponentsUpdated() override;
 
     void init();
     void showBlockControls();

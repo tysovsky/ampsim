@@ -28,6 +28,7 @@
 #include "../Plugins/InternalPlugins.h"
 #include "MainHostWindow.h"
 #include "ThemeManager.h"
+#include <set>
 
 namespace
 {
@@ -37,9 +38,13 @@ namespace
     constexpr int rowGap = 24;
     constexpr int insertButtonSize = 44;
     constexpr int chainMargin = 16;
+    constexpr int chainGap = 24;
+
+    // Tiles don't shrink further than this, to stay big enough to tap; chains that still don't fit scroll
+    constexpr float minScale = 0.6f;
 
     // More rows than this won't fit legibly on the 400 px tall screen
-    constexpr size_t maxParallelPlugins = 3;
+    constexpr size_t maxParallelBlocks = 3;
 }
 
 //==============================================================================
@@ -82,6 +87,7 @@ GraphEditorPanel::GraphEditorPanel (PluginGraph& g, KnownPluginList& kpl)
             moduleSets.emplace (name, std::move (set));
 
     picker = std::make_unique<PluginPicker> (knownPlugins, moduleSets);
+    chainEndControls = parseXML ("<Controls><Choice param=\"Channel\" label=\"Channel\" style=\"list\"/></Controls>");
 }
 
 GraphEditorPanel::~GraphEditorPanel()
@@ -114,63 +120,83 @@ void GraphEditorPanel::paint (Graphics& g)
         }
     };
 
-    const auto centreY = [this] (AudioProcessorGraph::NodeID id)
+    const auto centreY = [this] (NodeID id)
     {
         auto* comp = getComponentForPlugin (id);
         return comp != nullptr ? (float) comp->getBounds().getCentreY() : 0.0f;
     };
 
-    // Each column's empty lane, running between the rails either side of it
-    for (size_t c = 1; c + 1 < columns.size() && c < busX.size(); ++c)
+    for (size_t k = 0; k < chains.size(); ++k)
     {
-        if (laneY[c] < 0)
-            continue;
+        const auto& chain = chains[k];
+        const auto& columns = chain.columns;
 
-        const auto y = (float) laneY[c];
-        const auto left = (float) busX[c - 1];
-        const auto right = (float) busX[c];
-        const auto lowestTile = centreY (columns[c].nodes.back());
-
-        drawPath ({ left, lowestTile, left, y }, false);
-        drawPath ({ left, y, right, y }, false);
-        drawPath ({ right, lowestTile, right, y }, false);
-    }
-
-    // The rail in each gap: every tile in the column before it feeds in, and every tile in the
-    // column after it is fed from it, so parallel plugins split and merge here
-    for (size_t gap = 0; gap < busX.size() && gap + 1 < columns.size(); ++gap)
-    {
-        const auto x = (float) busX[gap];
-        const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
-
-        // Tiles are drawn for the plugins; their level stages sit invisibly just after them
-        auto top = std::numeric_limits<float>::max();
-        auto bottom = std::numeric_limits<float>::lowest();
-
-        for (auto id : columns[gap].nodes)
+        // A faint line between one chain and the next
+        if (k > 0)
         {
-            if (auto* comp = getComponentForPlugin (id))
-            {
-                const auto y = centreY (id);
-                drawPath ({ (float) comp->getRight(), y, x, y }, connected);
-                top = jmin (top, y);
-                bottom = jmax (bottom, y);
-            }
+            g.setColour (findColour (ComboBox::outlineColourId).withAlpha (0.5f));
+            g.fillRect (chainMargin, (chains[k - 1].bottom + chain.top) / 2, getWidth() - 2 * chainMargin, 1);
         }
 
-        for (auto id : columns[gap + 1].nodes)
+        // Each column's empty lane, running between the rails either side of it. At either end of the
+        // chain there's only a rail on one side, so the lane runs from there to the + under the column.
+        for (size_t c = 0; c < columns.size() && c < chain.laneY.size(); ++c)
         {
-            if (auto* comp = getComponentForPlugin (id))
-            {
-                const auto y = centreY (id);
-                drawPath ({ x, y, (float) comp->getX(), y }, connected);
-                top = jmin (top, y);
-                bottom = jmax (bottom, y);
-            }
+            if (chain.laneY[c] < 0)
+                continue;
+
+            const bool hasRailBefore = c > 0;
+            const bool hasRailAfter = c < chain.busX.size();
+            const auto y = (float) chain.laneY[c];
+            const auto left  = (float) (hasRailBefore ? chain.busX[c - 1] : chain.columnX[c]);
+            const auto right = (float) (hasRailAfter  ? chain.busX[c]     : chain.columnX[c]);
+            const auto lowestTile = centreY (columns[c].nodes.back());
+
+            if (hasRailBefore)
+                drawPath ({ left, lowestTile, left, y }, false);
+
+            drawPath ({ left, y, right, y }, false);
+
+            if (hasRailAfter)
+                drawPath ({ right, lowestTile, right, y }, false);
         }
 
-        if (bottom > top)
-            drawPath ({ x, top, x, bottom }, connected);
+        // The rail in each gap: every tile in the column before it feeds in, and every tile in the
+        // column after it is fed from it, so parallel blocks split and merge here
+        for (size_t gap = 0; gap < chain.busX.size() && gap + 1 < columns.size(); ++gap)
+        {
+            const auto x = (float) chain.busX[gap];
+            const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
+
+            // Tiles are drawn for the blocks; their level stages sit invisibly just after them
+            auto top = std::numeric_limits<float>::max();
+            auto bottom = std::numeric_limits<float>::lowest();
+
+            for (auto id : columns[gap].nodes)
+            {
+                if (auto* comp = getComponentForPlugin (id))
+                {
+                    const auto y = centreY (id);
+                    drawPath ({ (float) comp->getRight(), y, x, y }, connected);
+                    top = jmin (top, y);
+                    bottom = jmax (bottom, y);
+                }
+            }
+
+            for (auto id : columns[gap + 1].nodes)
+            {
+                if (auto* comp = getComponentForPlugin (id))
+                {
+                    const auto y = centreY (id);
+                    drawPath ({ x, y, (float) comp->getX(), y }, connected);
+                    top = jmin (top, y);
+                    bottom = jmax (bottom, y);
+                }
+            }
+
+            if (bottom > top)
+                drawPath ({ x, top, x, bottom }, connected);
+        }
     }
 }
 
@@ -186,14 +212,16 @@ void GraphEditorPanel::mouseDown (const MouseEvent& e)
         showPopupMenu (e.position.toInt());
 }
 
-void GraphEditorPanel::mouseUp (const MouseEvent&)
+void GraphEditorPanel::mouseUp (const MouseEvent& e)
 {
     if (true || isOnTouchDevice())
     {
         stopTimer();
     }
 
-    activeComponentChanged(nullptr);
+    // A tap on the background clears the selection; a drag is scrolling
+    if (e.mouseWasClicked())
+        activeComponentChanged(nullptr);
 }
 
 void GraphEditorPanel::mouseDrag (const MouseEvent& e)
@@ -204,12 +232,30 @@ void GraphEditorPanel::mouseDrag (const MouseEvent& e)
 
 void GraphEditorPanel::createNewPlugin (const PluginDescriptionAndPreference& desc, Point<int> position)
 {
+    // The chain the position is in, or the nearest one, then its nearest rail
+    const Chain* nearestChain = nullptr;
+    int nearestChainDistance = std::numeric_limits<int>::max();
+
+    for (auto& chain : chains)
+    {
+        const int distance = position.y < chain.top ? chain.top - position.y : jmax (0, position.y - chain.bottom);
+
+        if (distance < nearestChainDistance)
+        {
+            nearestChain = &chain;
+            nearestChainDistance = distance;
+        }
+    }
+
+    if (nearestChain == nullptr || nearestChain->busX.empty())
+        return;
+
     size_t nearestGap = 0;
     int nearestDistance = std::numeric_limits<int>::max();
 
-    for (size_t gap = 0; gap < busX.size(); ++gap)
+    for (size_t gap = 0; gap < nearestChain->busX.size(); ++gap)
     {
-        const int distance = std::abs (busX[gap] - position.x);
+        const int distance = std::abs (nearestChain->busX[gap] - position.x);
 
         if (distance < nearestDistance)
         {
@@ -218,8 +264,7 @@ void GraphEditorPanel::createNewPlugin (const PluginDescriptionAndPreference& de
         }
     }
 
-    if (! busX.empty())
-        insertInSeries ({ desc }, nearestGap);
+    insertPlugin ({ desc }, getSeriesInsertPoint (*nearestChain, nearestGap));
 }
 
 // For a module, switches the new plugin to that module and labels its node with the module's name
@@ -236,59 +281,155 @@ static std::function<void (AudioProcessorGraph::Node&)> getModuleSetUp (const Pl
     };
 }
 
-void GraphEditorPanel::insertInSeries (const PluginChoice& choice, size_t gap)
+GraphEditorPanel::InsertPoint GraphEditorPanel::getSeriesInsertPoint (const Chain& chain, size_t gap) const
 {
-    if (gap + 1 >= columns.size())
-        return;
-
     // A new column halfway between its neighbours' positions, so it sorts between them
-    const auto position = (columns[gap].position + columns[gap + 1].position) / 2.0;
+    const auto& columns = chain.columns;
 
-    graph.insertPlugin (choice.description, columns[gap].getOutputs(), columns[gap + 1].getInputs(), { position, 0.0 }, true,
-                        getModuleSetUp (choice.moduleSet, choice.module));
+    return { chain.id, columns[gap].getOutputs(), columns[gap + 1].getInputs(),
+             { (columns[gap].position + columns[gap + 1].position) / 2.0, 0.0 }, true };
 }
 
-void GraphEditorPanel::insertInParallel (const PluginChoice& choice, size_t column)
+GraphEditorPanel::InsertPoint GraphEditorPanel::getParallelInsertPoint (const Chain& chain, size_t column) const
 {
-    if (! canAddParallel (column))
-        return;
-
-    // Same x as the rest of the column, and a row below its lowest plugin
+    // Same x as the rest of the column, and a row below its lowest block. An input only feeds the
+    // column after it, and an output is only fed by the one before.
+    const auto& columns = chain.columns;
     const auto row = graph.getNodePosition (columns[column].nodes.back()).y + 1.0;
 
-    graph.insertPlugin (choice.description, columns[column - 1].getOutputs(), columns[column + 1].getInputs(),
-                        { columns[column].position, row }, false,
-                        getModuleSetUp (choice.moduleSet, choice.module));
+    return { chain.id,
+             column > 0 ? columns[column - 1].getOutputs() : std::vector<NodeID>(),
+             column + 1 < columns.size() ? columns[column + 1].getInputs() : std::vector<NodeID>(),
+             { columns[column].position, row }, false };
 }
 
-void GraphEditorPanel::removeFromChain (AudioProcessorGraph::NodeID nodeID)
+void GraphEditorPanel::insertPlugin (const PluginChoice& choice, const InsertPoint& point)
 {
-    // The input and output nodes at either end stay put
-    for (size_t c = 1; c + 1 < columns.size(); ++c)
+    const auto moduleSetUp = getModuleSetUp (choice.moduleSet, choice.module);
+
+    graph.insertPlugin (choice.description, point.sources, point.destinations, point.position, point.inSeries,
+                        [moduleSetUp, chain = point.chain] (AudioProcessorGraph::Node& node)
+                        {
+                            node.properties.set ("chain", chain);
+
+                            if (moduleSetUp != nullptr)
+                                moduleSetUp (node);
+                        });
+}
+
+void GraphEditorPanel::addChain()
+{
+    // The next chain number, and the first input channel that no chain is using yet
+    int id = 0;
+    std::set<int> usedChannels;
+
+    for (auto& chain : chains)
     {
-        const auto& column = columns[c];
-        const auto it = std::find (column.nodes.begin(), column.nodes.end(), nodeID);
+        id = jmax (id, chain.id + 1);
 
-        if (it == column.nodes.end())
-            continue;
-
-        const auto index = (size_t) std::distance (column.nodes.begin(), it);
-        std::vector<AudioProcessorGraph::NodeID> toRemove { nodeID };
-
-        if (column.levels[index] != AudioProcessorGraph::NodeID())
-            toRemove.push_back (column.levels[index]);
-
-        // When one of two parallel plugins goes, the other is on its own again, so put its level
-        // back to full rather than leave it quietly turned down with no mix bar to show it
-        if (column.nodes.size() == 2)
-            if (auto* remaining = graph.graph.getNodeForId (column.levels[1 - index]))
-                if (auto* level = dynamic_cast<LaneLevelProcessor*> (remaining->getProcessor()))
-                    level->getLevel().setValueNotifyingHost (1.0f);
-
-        // If it was the last plugin in its column, join the columns either side so the signal still flows
-        graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
-        return;
+        for (auto& column : chain.columns)
+            for (auto node : column.nodes)
+                if (auto* input = dynamic_cast<ChainInputProcessor*> (getChainEnd (node)))
+                    usedChannels.insert (input->getChosenChannels().first);
     }
+
+    int channel = 0;
+
+    while (usedChannels.count (channel) > 0 && channel + 1 < ChainEndProcessor::maxChannels)
+        ++channel;
+
+    const auto input = graph.addChainEnd (true, id, { 0.0, 0.0 }, ChainEndProcessor::getChoiceFor (channel, false), {}, {});
+    graph.addChainEnd (false, id, { 1.0, 0.0 }, ChainEndProcessor::getChoiceFor (0, true), { input }, {});
+}
+
+void GraphEditorPanel::addParallelEnd (const Chain& chain, size_t column)
+{
+    // The channel after the column's last one, so Input 1 is followed by Input 2, and Output 1+2 by Output 3+4
+    int choice = 0;
+
+    if (auto* last = getChainEnd (chain.columns[column].nodes.back()))
+    {
+        const auto [first, second] = last->getChosenChannels();
+        const bool isPair = second >= 0;
+        const int next = first + (isPair ? 2 : 1);
+
+        choice = ChainEndProcessor::getChoiceFor (next < ChainEndProcessor::maxChannels ? next : 0, isPair);
+    }
+
+    const auto point = getParallelInsertPoint (chain, column);
+    graph.addChainEnd (column == 0, point.chain, point.position, choice, point.sources, point.destinations);
+}
+
+void GraphEditorPanel::removeFromChain (NodeID nodeID)
+{
+    for (auto& chain : chains)
+    {
+        const auto& columns = chain.columns;
+
+        for (size_t c = 0; c < columns.size(); ++c)
+        {
+            const auto& column = columns[c];
+            const auto it = std::find (column.nodes.begin(), column.nodes.end(), nodeID);
+
+            if (it == column.nodes.end())
+                continue;
+
+            // An input or output just goes, unless it's the chain's last one, which takes its chain with it
+            if (isEndColumn (column))
+            {
+                std::vector<NodeID> toRemove;
+
+                if (column.nodes.size() > 1)
+                {
+                    toRemove.push_back (nodeID);
+                }
+                else
+                {
+                    for (auto& each : columns)
+                    {
+                        toRemove.insert (toRemove.end(), each.nodes.begin(), each.nodes.end());
+
+                        for (auto level : each.levels)
+                            if (level != NodeID())
+                                toRemove.push_back (level);
+                    }
+                }
+
+                graph.removeFromChain (toRemove, {}, {}, false);
+                return;
+            }
+
+            if (c == 0 || c + 1 >= columns.size())
+                return;
+
+            const auto index = (size_t) std::distance (column.nodes.begin(), it);
+            std::vector<NodeID> toRemove { nodeID };
+
+            if (column.levels[index] != NodeID())
+                toRemove.push_back (column.levels[index]);
+
+            // When one of two parallel plugins goes, the other is on its own again, so put its level
+            // back to full rather than leave it quietly turned down with no mix bar to show it
+            if (column.nodes.size() == 2)
+                if (auto* remaining = graph.graph.getNodeForId (column.levels[1 - index]))
+                    if (auto* level = dynamic_cast<LaneLevelProcessor*> (remaining->getProcessor()))
+                        level->getLevel().setValueNotifyingHost (1.0f);
+
+            // If it was the last plugin in its column, join the columns either side so the signal still flows
+            graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
+            return;
+        }
+    }
+}
+
+bool GraphEditorPanel::removesWholeChain (NodeID nodeID) const
+{
+    for (auto& chain : chains)
+        for (auto& column : chain.columns)
+            if (std::find (column.nodes.begin(), column.nodes.end(), nodeID) != column.nodes.end())
+                return isEndColumn (column) && column.nodes.size() == 1;
+
+    return false;
 }
 
 BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) const
@@ -298,8 +439,11 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
     if (node == nullptr)
         return BlockIcon::plugin;
 
-    if (auto* io = dynamic_cast<AudioProcessorGraph::AudioGraphIOProcessor*> (node->getProcessor()))
-        return io->isInput() ? BlockIcon::input : BlockIcon::output;
+    if (dynamic_cast<ChainInputProcessor*> (node->getProcessor()) != nullptr)
+        return BlockIcon::input;
+
+    if (dynamic_cast<ChainOutputProcessor*> (node->getProcessor()) != nullptr)
+        return BlockIcon::output;
 
     auto* set = findModuleSet (*node);
 
@@ -320,6 +464,10 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
 
 const XmlElement* GraphEditorPanel::getBlockControls (AudioProcessorGraph::NodeID nodeID) const
 {
+    // A chain's inputs and outputs have the one control: which channel
+    if (getChainEnd (nodeID) != nullptr)
+        return chainEndControls.get();
+
     auto* node = graph.graph.getNodeForId (nodeID);
     auto* set = node != nullptr ? findModuleSet (*node) : nullptr;
 
@@ -333,6 +481,12 @@ const XmlElement* GraphEditorPanel::getBlockControls (AudioProcessorGraph::NodeI
 
     auto* module = set->findModule (moduleName);
     return module != nullptr ? module->controls.get() : nullptr;
+}
+
+ChainEndProcessor* GraphEditorPanel::getChainEnd (NodeID nodeID) const
+{
+    auto* node = graph.graph.getNodeForId (nodeID);
+    return node != nullptr ? dynamic_cast<ChainEndProcessor*> (node->getProcessor()) : nullptr;
 }
 
 const PluginModuleSet* GraphEditorPanel::findModuleSet (const AudioProcessorGraph::Node& node) const
@@ -388,6 +542,11 @@ void GraphEditorPanel::changeListenerCallback (ChangeBroadcaster*)
 
 void GraphEditorPanel::updateComponents()
 {
+    addChainEndsToOldGraph();
+
+    // The device may have more channels than when the inputs and outputs were added
+    graph.connectDeviceChannels();
+
     for (int i = nodes.size(); --i >= 0;)
         if (graph.graph.getNodeForId(nodes.getUnchecked(i)->pluginID) == nullptr) {
             Component::BailOutChecker checker(this);
@@ -413,94 +572,117 @@ void GraphEditorPanel::updateComponents()
         }
     }
 
-    layoutChain();
+    layoutChains();
+
+    listeners.call ([] (Listener& l) { l.onComponentsUpdated(); });
 }
 
-std::vector<GraphEditorPanel::Column> GraphEditorPanel::findColumns() const
+std::vector<GraphEditorPanel::Chain> GraphEditorPanel::findChains() const
 {
-    using IOProcessor = AudioProcessorGraph::AudioGraphIOProcessor;
-
-    const auto findIONode = [this] (IOProcessor::IODeviceType type) -> AudioProcessorGraph::Node*
-    {
-        for (auto* node : graph.graph.getNodes())
-            if (auto* io = dynamic_cast<IOProcessor*> (node->getProcessor()))
-                if (io->getType() == type)
-                    return node;
-
-        return nullptr;
-    };
-
-    auto* input = findIONode (IOProcessor::audioInputNode);
-    auto* output = findIONode (IOProcessor::audioOutputNode);
-
-    std::vector<Column> result;
-
-    if (input == nullptr || output == nullptr)
-        return result;
-
-    // The plugins go between the input and output, ordered by their stored x position. Plugins with
+    // Every block belongs to a chain, by its "chain" property. Within a chain, the blocks are ordered
+    // by their stored x: the inputs are at 0, the outputs at 1, and the plugins in between. Blocks with
     // the same x run in parallel, top to bottom by their stored y. The order doesn't come from the
-    // connections, so a plugin stays in place even when no audio reaches it (e.g. with no input
-    // device). The I/O nodes, including the MIDI ones, aren't plugins.
-    std::vector<AudioProcessorGraph::Node*> plugins;
-    std::map<std::pair<double, double>, AudioProcessorGraph::NodeID> levelsByPosition;
+    // connections, so a block stays in place even when no audio reaches it (e.g. with no input
+    // device). The audio device's own nodes, and the MIDI ones, aren't blocks.
+    using Key = std::tuple<int, double, double>;    // chain, x, y
 
-    const auto positionOf = [] (const AudioProcessorGraph::Node* node)
+    const auto keyOf = [] (const AudioProcessorGraph::Node* node)
     {
-        return std::make_pair ((double) node->properties["x"], (double) node->properties["y"]);
+        return Key { (int) node->properties["chain"], (double) node->properties["x"], (double) node->properties["y"] };
     };
+
+    std::map<int, std::vector<AudioProcessorGraph::Node*>> blocksByChain;
+    std::map<Key, NodeID> levelsByPosition;
 
     for (auto* node : graph.graph.getNodes())
     {
         // Level stages aren't shown; each one belongs to the plugin at the same position
         if (dynamic_cast<LaneLevelProcessor*> (node->getProcessor()) != nullptr)
-            levelsByPosition[positionOf (node)] = node->nodeID;
-        else if (dynamic_cast<IOProcessor*> (node->getProcessor()) == nullptr)
-            plugins.push_back (node);
+            levelsByPosition[keyOf (node)] = node->nodeID;
+        else if (dynamic_cast<AudioProcessorGraph::AudioGraphIOProcessor*> (node->getProcessor()) == nullptr)
+            blocksByChain[(int) node->properties["chain"]].push_back (node);
     }
 
-    std::sort (plugins.begin(), plugins.end(), [] (const auto* a, const auto* b)
+    std::vector<Chain> result;
+
+    for (auto& [id, blocks] : blocksByChain)
     {
-        const auto ax = (double) a->properties["x"], bx = (double) b->properties["x"];
-        const auto ay = (double) a->properties["y"], by = (double) b->properties["y"];
-
-        if (ax != bx)   return ax < bx;
-        if (ay != by)   return ay < by;
-        return a->nodeID.uid < b->nodeID.uid;
-    });
-
-    result.push_back ({ { input->nodeID }, 0.0, { {} } });
-
-    for (auto* node : plugins)
-    {
-        const auto x = (double) node->properties["x"];
-        const auto levelIt = levelsByPosition.find (positionOf (node));
-        const auto level = levelIt != levelsByPosition.end() ? levelIt->second : AudioProcessorGraph::NodeID();
-
-        if (result.size() > 1 && result.back().position == x)
+        std::sort (blocks.begin(), blocks.end(), [] (const auto* a, const auto* b)
         {
-            result.back().nodes.push_back (node->nodeID);
-            result.back().levels.push_back (level);
-        }
-        else
+            const auto ax = (double) a->properties["x"], bx = (double) b->properties["x"];
+            const auto ay = (double) a->properties["y"], by = (double) b->properties["y"];
+
+            if (ax != bx)   return ax < bx;
+            if (ay != by)   return ay < by;
+            return a->nodeID.uid < b->nodeID.uid;
+        });
+
+        Chain chain;
+        chain.id = id;
+
+        for (auto* node : blocks)
         {
-            result.push_back ({ { node->nodeID }, x, { level } });
+            const auto x = (double) node->properties["x"];
+            const auto levelIt = levelsByPosition.find (keyOf (node));
+            const auto level = levelIt != levelsByPosition.end() ? levelIt->second : NodeID();
+
+            if (! chain.columns.empty() && chain.columns.back().position == x)
+            {
+                chain.columns.back().nodes.push_back (node->nodeID);
+                chain.columns.back().levels.push_back (level);
+            }
+            else
+            {
+                chain.columns.push_back ({ { node->nodeID }, x, { level } });
+            }
         }
+
+        result.push_back (std::move (chain));
     }
 
-    result.push_back ({ { output->nodeID }, 1.0, { {} } });
     return result;
 }
 
-std::vector<AudioProcessorGraph::NodeID> GraphEditorPanel::Column::getOutputs() const
+void GraphEditorPanel::addChainEndsToOldGraph()
+{
+    for (auto* node : graph.graph.getNodes())
+        if (dynamic_cast<ChainEndProcessor*> (node->getProcessor()) != nullptr)
+            return;
+
+    // Before chains had inputs and outputs of their own, there was one chain, wired straight to the
+    // audio device's nodes, which were where its inputs and outputs are now. So the plugins become
+    // that chain's, between an input and an output, or a new graph gets a chain with nothing in it.
+    graph.disconnectAudioDevice();
+
+    const auto oldChains = findChains();
+    std::vector<NodeID> firstInputs, lastOutputs;
+
+    if (! oldChains.empty() && ! oldChains.front().columns.empty())
+    {
+        firstInputs = oldChains.front().columns.front().getInputs();
+        lastOutputs = oldChains.front().columns.back().getOutputs();
+    }
+
+    const auto input = graph.addChainEnd (true, 0, { 0.0, 0.0 }, ChainEndProcessor::getChoiceFor (0, false), {}, firstInputs);
+
+    graph.addChainEnd (false, 0, { 1.0, 0.0 }, ChainEndProcessor::getChoiceFor (0, true),
+                       firstInputs.empty() ? std::vector<NodeID> { input } : lastOutputs, {});
+}
+
+std::vector<GraphEditorPanel::NodeID> GraphEditorPanel::Column::getOutputs() const
 {
     auto outputs = nodes;
 
     for (size_t i = 0; i < outputs.size() && i < levels.size(); ++i)
-        if (levels[i] != AudioProcessorGraph::NodeID())
+        if (levels[i] != NodeID())
             outputs[i] = levels[i];
 
     return outputs;
+}
+
+bool GraphEditorPanel::isEndColumn (const Column& column) const
+{
+    return ! column.nodes.empty() && getChainEnd (column.nodes.front()) != nullptr;
 }
 
 bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& destinations) const
@@ -521,126 +703,204 @@ bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& de
     return false;
 }
 
-bool GraphEditorPanel::canAddParallel (size_t column) const
+bool GraphEditorPanel::canAddParallel (const Chain& chain, size_t column) const
 {
-    // Only plugin columns, not the input and output at either end
-    return column > 0 && column + 1 < columns.size()
-            && columns[column].nodes.size() < maxParallelPlugins;
+    // Any column, inputs and outputs included, as long as there's a column for it to connect to
+    return chain.columns.size() >= 2 && chain.columns[column].nodes.size() < maxParallelBlocks;
 }
 
-void GraphEditorPanel::layoutChain()
+void GraphEditorPanel::layoutChains()
 {
-    columns = findColumns();
+    chains = findChains();
 
-    // Hide the nodes that aren't part of the chain (the MIDI I/O nodes)
+    // Hide the nodes that aren't part of a chain (the audio device's, and the MIDI ones)
+    std::set<uint32> blocksInChains;
+
+    for (auto& chain : chains)
+        for (auto& column : chain.columns)
+            for (auto id : column.nodes)
+                blocksInChains.insert (id.uid);
+
     for (auto* fc : nodes)
+        fc->setVisible (blocksInChains.count (fc->pluginID.uid) > 0);
+
+    // A + in each gap of each chain, and one under each column, shown while it has room for more
+    seriesTargets.clear();
+    parallelTargets.clear();
+
+    for (size_t k = 0; k < chains.size(); ++k)
     {
-        bool inChain = false;
+        for (size_t gap = 0; gap + 1 < chains[k].columns.size(); ++gap)
+            seriesTargets.push_back ({ k, gap });
 
-        for (auto& column : columns)
-            inChain = inChain || std::find (column.nodes.begin(), column.nodes.end(), fc->pluginID) != column.nodes.end();
-
-        fc->setVisible (inChain);
+        for (size_t c = 0; c < chains[k].columns.size(); ++c)
+            parallelTargets.push_back ({ k, c });
     }
 
-    const int numColumns = (int) columns.size();
-    const int numGaps = jmax (0, numColumns - 1);
-
-    const auto resizeButtons = [this] (OwnedArray<InsertButton>& buttons, int size, std::function<void (int)> onClick)
+    const auto resizeButtons = [this] (OwnedArray<InsertButton>& buttons, size_t size, std::function<void (size_t)> onClick)
     {
-        while (buttons.size() < size)
+        while ((size_t) buttons.size() < size)
         {
             auto* button = buttons.add (new InsertButton());
-            const int index = buttons.size() - 1;
+            const auto index = (size_t) buttons.size() - 1;
             button->onClick = [onClick, index] { onClick (index); };
             addChildComponent (button);
         }
 
-        while (buttons.size() > size)
+        while ((size_t) buttons.size() > size)
             buttons.removeLast();
     };
 
-    resizeButtons (seriesButtons, numGaps, [this] (int gap)
+    // Where a plugin goes is worked out when the + is tapped, as the chains may have changed by the
+    // time one's been picked
+    resizeButtons (seriesButtons, seriesTargets.size(), [this] (size_t index)
     {
-        showPluginPicker ([this, gap] (const PluginChoice& choice)
+        const auto [chain, gap] = seriesTargets[index];
+
+        showPluginPicker ([this, point = getSeriesInsertPoint (chains[chain], gap)] (const PluginChoice& choice)
         {
-            insertInSeries (choice, (size_t) gap);
+            insertPlugin (choice, point);
         });
     });
 
-    resizeButtons (parallelButtons, numColumns, [this] (int column)
+    resizeButtons (parallelButtons, parallelTargets.size(), [this] (size_t index)
     {
-        showPluginPicker ([this, column] (const PluginChoice& choice)
+        const auto [chain, column] = parallelTargets[index];
+
+        // Another input or output is added straight away, and its channel picked on its own controls
+        if (isEndColumn (chains[chain].columns[column]))
         {
-            insertInParallel (choice, (size_t) column);
+            addParallelEnd (chains[chain], column);
+            return;
+        }
+
+        showPluginPicker ([this, point = getParallelInsertPoint (chains[chain], column)] (const PluginChoice& choice)
+        {
+            insertPlugin (choice, point);
         });
     });
 
-    // The height each column needs at full size: its tiles, plus its lane if it has room for more
-    int fullHeight = tileSize;
+    // Each chain's height at full size: its tallest column, with the lane under it if it has room for more
+    std::vector<int> chainHeights;
+    int fullWidth = tileSize, fullHeight = 0;
 
-    for (size_t c = 0; c < columns.size(); ++c)
+    for (auto& chain : chains)
     {
-        const int numRows = (int) columns[c].nodes.size();
-        int height = numRows * tileSize + (numRows - 1) * rowGap;
+        int height = tileSize;
 
-        if (canAddParallel (c))
-            height += rowGap + insertButtonSize;
+        for (size_t c = 0; c < chain.columns.size(); ++c)
+        {
+            const int numRows = (int) chain.columns[c].nodes.size();
+            int columnHeight = numRows * tileSize + (numRows - 1) * rowGap;
 
-        fullHeight = jmax (fullHeight, height);
+            if (canAddParallel (chain, c))
+                columnHeight += rowGap + insertButtonSize;
+
+            height = jmax (height, columnHeight);
+        }
+
+        const int numColumns = (int) chain.columns.size();
+        fullWidth = jmax (fullWidth, numColumns * tileSize + jmax (0, numColumns - 1) * gapWidth);
+        fullHeight += height;
+        chainHeights.push_back (height);
     }
 
-    // Shrink everything together when the chain is too long or too tall for the panel
-    const int fullWidth = numColumns * tileSize + numGaps * gapWidth;
-    const float scale = jmin (1.0f,
-                              (float) (getWidth() - 2 * chainMargin) / (float) jmax (1, fullWidth),
-                              (float) (getHeight() - 2 * chainMargin) / (float) fullHeight);
+    fullHeight += jmax (0, (int) chains.size() - 1) * chainGap;
+
+    // Shrink everything together when the chains are too long or too tall for the space they're shown
+    // in, down to a size that can still be tapped. Past that, this panel grows bigger than the space,
+    // which is a viewport, to scroll.
+    const auto visible = [this]
+    {
+        if (auto* viewport = findParentComponentOfClass<Viewport>())
+            return Point<int> { viewport->getWidth(), viewport->getHeight() };
+
+        return Point<int> { getWidth(), getHeight() };
+    }();
+
+    const float scale = jlimit (minScale, 1.0f,
+                                jmin ((float) (visible.x - 2 * chainMargin) / (float) fullWidth,
+                                      (float) (visible.y - 2 * chainMargin) / (float) jmax (1, fullHeight)));
+    const int scaledWidth = roundToInt ((float) fullWidth * scale);
+    const int scaledHeight = roundToInt ((float) fullHeight * scale);
+    const Point<int> size { jmax (visible.x, scaledWidth + 2 * chainMargin), jmax (visible.y, scaledHeight + 2 * chainMargin) };
+
+    // Resizing lays it all out again
+    if (getWidth() != size.x || getHeight() != size.y)
+    {
+        setSize (size.x, size.y);
+        return;
+    }
+
     const int tile = roundToInt ((float) tileSize * scale);
     const int gap = roundToInt ((float) gapWidth * scale);
     const int rowSpacing = roundToInt ((float) rowGap * scale);
-    const int buttonSize = jmin (insertButtonSize, gap - 4);
+    const int chainSpacing = roundToInt ((float) chainGap * scale);
 
-    int x = (getWidth() - (numColumns * tile + numGaps * gap)) / 2;
-    const int top = (getHeight() - roundToInt ((float) fullHeight * scale)) / 2;
+    // Smaller too, so the rails either side of a + still show
+    const int buttonSize = jmax (28, jmin (insertButtonSize, gap - 16));
 
-    busX.assign ((size_t) numGaps, 0);
-    laneY.assign ((size_t) numColumns, -1);
+    // The chains go top to bottom, all starting at the same x so their inputs line up
+    const int left = (getWidth() - scaledWidth) / 2;
+    int top = (getHeight() - scaledHeight) / 2;
+    int seriesIndex = 0, parallelIndex = 0;
 
-    for (int c = 0; c < numColumns; ++c)
+    for (size_t k = 0; k < chains.size(); ++k)
     {
-        const auto& column = columns[(size_t) c];
+        auto& chain = chains[k];
+        const int numColumns = (int) chain.columns.size();
+        const int numGaps = jmax (0, numColumns - 1);
+        int x = left;
 
-        // Plugins sharing a column get a mix bar for their lane's level
-        const bool isParallel = column.nodes.size() > 1;
+        chain.top = top;
+        chain.busX.assign ((size_t) numGaps, 0);
+        chain.laneY.assign ((size_t) numColumns, -1);
+        chain.columnX.assign ((size_t) numColumns, 0);
 
-        for (size_t row = 0; row < column.nodes.size(); ++row)
+        for (int c = 0; c < numColumns; ++c)
         {
-            if (auto* comp = getComponentForPlugin (column.nodes[row]))
+            const auto& column = chain.columns[(size_t) c];
+
+            // Plugins sharing a column get a mix bar for their lane's level
+            const bool isParallel = column.nodes.size() > 1;
+
+            for (size_t row = 0; row < column.nodes.size(); ++row)
             {
-                comp->setBounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
-                comp->setLaneLevel (isParallel ? graph.graph.getNodeForId (column.levels[row]) : nullptr);
+                if (auto* comp = getComponentForPlugin (column.nodes[row]))
+                {
+                    comp->setBounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
+                    comp->setLaneLevel (isParallel ? graph.graph.getNodeForId (column.levels[row]) : nullptr);
+                }
+            }
+
+            chain.columnX[(size_t) c] = x + tile / 2;
+
+            auto* laneButton = parallelButtons[parallelIndex++];
+            const bool hasLane = canAddParallel (chain, (size_t) c);
+            laneButton->setVisible (hasLane);
+
+            if (hasLane)
+            {
+                const int laneTop = top + (int) column.nodes.size() * (tile + rowSpacing);
+                chain.laneY[(size_t) c] = laneTop + buttonSize / 2;
+                laneButton->setBounds (Rectangle<int> (x, laneTop, tile, buttonSize).withSizeKeepingCentre (buttonSize, buttonSize));
+            }
+
+            x += tile;
+
+            if (c < numGaps)
+            {
+                auto* seriesButton = seriesButtons[seriesIndex++];
+                chain.busX[(size_t) c] = x + gap / 2;
+                seriesButton->setBounds (Rectangle<int> (x, top, gap, tile).withSizeKeepingCentre (buttonSize, buttonSize));
+                seriesButton->setVisible (true);
+                x += gap;
             }
         }
 
-        const bool hasLane = canAddParallel ((size_t) c);
-        parallelButtons[c]->setVisible (hasLane);
-
-        if (hasLane)
-        {
-            const int laneTop = top + (int) column.nodes.size() * (tile + rowSpacing);
-            laneY[(size_t) c] = laneTop + buttonSize / 2;
-            parallelButtons[c]->setBounds (Rectangle<int> (x, laneTop, tile, buttonSize).withSizeKeepingCentre (buttonSize, buttonSize));
-        }
-
-        x += tile;
-
-        if (c < numGaps)
-        {
-            busX[(size_t) c] = x + gap / 2;
-            seriesButtons[c]->setBounds (Rectangle<int> (x, top, gap, tile).withSizeKeepingCentre (buttonSize, buttonSize));
-            seriesButtons[c]->setVisible (true);
-            x += gap;
-        }
+        top += roundToInt ((float) chainHeights[k] * scale);
+        chain.bottom = top;
+        top += chainSpacing;
     }
 
     repaint();

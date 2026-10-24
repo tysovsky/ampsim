@@ -44,6 +44,8 @@ void PluginComponent::mouseDown(const MouseEvent& e)
     // Touching the mix bar sets the lane's level instead of selecting the tile
     if (auto* level = getLaneLevelParameter(); level != nullptr && getMixBarArea().contains(e.getPosition()))
     {
+        // Sliding along the bar mustn't also scroll the chains
+        setViewportIgnoreDragFlag(true);
         isAdjustingLevel = true;
         level->beginChangeGesture();
         setLaneLevelFromPosition(e.x);
@@ -77,6 +79,7 @@ void PluginComponent::mouseUp(const MouseEvent& e)
     if (isAdjustingLevel)
     {
         isAdjustingLevel = false;
+        setViewportIgnoreDragFlag(false);
 
         if (auto* level = getLaneLevelParameter())
             level->endChangeGesture();
@@ -223,6 +226,10 @@ void PluginComponent::update()
 
     setName(moduleName.isNotEmpty() ? moduleName : pluginName);
     subtitle = moduleName.isNotEmpty() ? pluginName : String();
+
+    // A chain's input or output goes by its channel, e.g. "Input 2"
+    if (auto* end = dynamic_cast<ChainEndProcessor*>(f->getProcessor()))
+        setName(end->getBlockName());
     icon = panel.getBlockIcon(pluginID);
     repaint();
 }
@@ -260,6 +267,27 @@ void PluginComponent::showPopupMenu()
 
     if (nodeName == "Audio Input" ||
         nodeName == "Audio Output") {
+        return;
+    }
+
+    // A chain's input or output can only be deleted; the last of either takes its chain with it
+    if (node != nullptr && dynamic_cast<ChainEndProcessor*>(node->getProcessor()) != nullptr) {
+        const bool isInput = dynamic_cast<ChainInputProcessor*>(node->getProcessor()) != nullptr;
+        const bool deletesChain = panel.removesWholeChain(pluginID);
+
+        nodeActionWindow->showOkCancelBox(
+            MessageBoxIconType::NoIcon,
+            getName(),
+            deletesChain ? "It's the chain's only " + String(isInput ? "input" : "output")
+                           + ", so the chain and every block in it will go too."
+                         : String(),
+            deletesChain ? "Delete chain" : "Delete",
+            "Cancel",
+            nullptr,
+            ModalCallbackFunction::create([this](int result) {
+                if (result == 1)
+                    panel.removeFromChain(pluginID);
+            }));
         return;
     }
 

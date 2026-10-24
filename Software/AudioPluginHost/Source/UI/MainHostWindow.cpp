@@ -340,9 +340,15 @@ MainHostWindow::MainHostWindow()
     InternalPluginFormat internalFormat;
     internalTypes = internalFormat.getAllTypes();
 
-    // The chain view adds lane level stages itself, so they're not offered as plugins
+    // The chain view adds lane level stages and the chains' inputs and outputs itself, so they're
+    // not offered as plugins
     internalTypes.erase (std::remove_if (internalTypes.begin(), internalTypes.end(),
-                                         [] (const PluginDescription& d) { return d.name == LaneLevelProcessor::getIdentifier(); }),
+                                         [] (const PluginDescription& d)
+                                         {
+                                             return d.name == LaneLevelProcessor::getIdentifier()
+                                                 || d.name == ChainInputProcessor::getIdentifier()
+                                                 || d.name == ChainOutputProcessor::getIdentifier();
+                                         }),
                          internalTypes.end());
 
     if (auto savedPluginList = getAppProperties().getUserSettings()->getXmlValue ("pluginList"))

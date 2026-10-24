@@ -33,16 +33,19 @@
 #include "PluginPicker.h"
 
 class MainHostWindow;
+class ChainEndProcessor;
 
 
 //==============================================================================
 /**
-    A panel that displays and edits a PluginGraph as a signal chain running left
-    to right, from the audio input to the audio output, like a row of pedals.
+    A panel that displays and edits a PluginGraph as signal chains running left to
+    right, like rows of pedals, each from its own input blocks to its own output
+    blocks. Each chain's input and output blocks pick channels of the audio device,
+    so a guitar on one input and a mic on another can have chains of their own.
 
-    Each step of the chain is a column of plugins running in parallel. A + on the
+    Each step of a chain is a column of blocks running in parallel. A + on a chain's
     main line inserts a new step in series; a + in the lane under a column adds a
-    plugin in parallel to that column.
+    plugin in parallel to that column, or another input or output at either end.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -55,6 +58,9 @@ public:
         virtual void onActiveComponentChange(PluginComponent* activeComponent) = 0;
 
         virtual void onNodeDeleted(PluginComponent* removedComponent) = 0;
+
+        /** Called after the tiles have been updated, e.g. when one has been renamed. */
+        virtual void onComponentsUpdated() {}
     };
 
     //==============================================================================
@@ -64,8 +70,16 @@ public:
     /** Inserts a plugin in series at the main-line + nearest to the given position. */
     void createNewPlugin (const PluginDescriptionAndPreference&, Point<int> position);
 
-    /** Removes a plugin from the chain, joining up the steps either side if it was the last in its column. */
+    /** Adds a chain underneath the others: an input and an output, connected to each other. */
+    void addChain();
+
+    /** Removes a block from its chain. A plugin that was the last in its column leaves the steps
+        either side joined up; a chain's last input or output takes the whole chain with it.
+    */
     void removeFromChain (AudioProcessorGraph::NodeID);
+
+    /** True for a chain's only input or only output, which removeFromChain() removes the chain with. */
+    bool removesWholeChain (AudioProcessorGraph::NodeID) const;
 
     /** What kind of block a node is, for the icon on its tile. */
     BlockIcon getBlockIcon (AudioProcessorGraph::NodeID) const;
@@ -115,36 +129,65 @@ public:
 private:
     class InsertButton;
 
-    /** A step of the chain: one or more plugins running in parallel, or the input or output node. */
+    using NodeID = AudioProcessorGraph::NodeID;
+
+    /** A step of a chain: one or more blocks running in parallel. */
     struct Column
     {
-        std::vector<AudioProcessorGraph::NodeID> nodes;   // top to bottom
-        double position = 0.0;                            // the nodes' shared x, which orders the columns
-        std::vector<AudioProcessorGraph::NodeID> levels;  // each node's lane level stage, if it has one
+        std::vector<NodeID> nodes;      // top to bottom
+        double position = 0.0;          // the nodes' shared x, which orders the columns
+        std::vector<NodeID> levels;     // each node's lane level stage, if it has one
 
-        /** Where audio from the previous column goes in: the plugins themselves. */
-        const std::vector<AudioProcessorGraph::NodeID>& getInputs() const    { return nodes; }
+        /** Where audio from the previous column goes in: the blocks themselves. */
+        const std::vector<NodeID>& getInputs() const    { return nodes; }
 
-        /** Where audio leaves for the next column: each plugin's level stage, or the plugin if it has none. */
-        std::vector<AudioProcessorGraph::NodeID> getOutputs() const;
+        /** Where audio leaves for the next column: each block's level stage, or the block if it has none. */
+        std::vector<NodeID> getOutputs() const;
+    };
+
+    /** One chain: a column of its inputs, its plugins' columns, then a column of its outputs. */
+    struct Chain
+    {
+        int id = 0;                     // its nodes' "chain" property
+        std::vector<Column> columns;
+
+        // Where layoutChains() put it
+        std::vector<int> busX;          // x of the split/merge rail in each gap between columns
+        std::vector<int> laneY;         // y of each column's empty parallel lane, or -1 if it has none
+        std::vector<int> columnX;       // x of the middle of each column
+        int top = 0, bottom = 0;
+    };
+
+    /** Where a + adds a block: in which chain, between what, and at what position. */
+    struct InsertPoint
+    {
+        int chain = 0;
+        std::vector<NodeID> sources, destinations;
+        Point<double> position;
+        bool inSeries = true;
     };
 
     const PluginModuleSet* findModuleSet (const AudioProcessorGraph::Node&) const;
-    std::vector<Column> findColumns() const;
+    ChainEndProcessor* getChainEnd (NodeID) const;
+    std::vector<Chain> findChains() const;
+    bool isEndColumn (const Column&) const;
     bool isAudioConnected (const Column& sources, const Column& destinations) const;
-    bool canAddParallel (size_t column) const;
-    void layoutChain();
+    bool canAddParallel (const Chain&, size_t column) const;
+    void layoutChains();
+    void addChainEndsToOldGraph();
     void showPluginPicker (std::function<void (const PluginChoice&)> onChosen);
-    void insertInSeries (const PluginChoice&, size_t gap);
-    void insertInParallel (const PluginChoice&, size_t column);
+    InsertPoint getSeriesInsertPoint (const Chain&, size_t gap) const;
+    InsertPoint getParallelInsertPoint (const Chain&, size_t column) const;
+    void insertPlugin (const PluginChoice&, const InsertPoint&);
+    void addParallelEnd (const Chain&, size_t column);
 
     KnownPluginList& knownPlugins;
     std::map<String, PluginModuleSet> moduleSets;   // by plugin name
     std::unique_ptr<PluginPicker> picker;
-    std::vector<Column> columns;
-    std::vector<int> busX;    // x of the split/merge rail in each gap between columns
-    std::vector<int> laneY;   // y of each column's empty parallel lane, or -1 if it has none
+    std::unique_ptr<XmlElement> chainEndControls;   // the inputs' and outputs' channel choice
+    std::vector<Chain> chains;
     OwnedArray<InsertButton> seriesButtons, parallelButtons;
+    std::vector<std::pair<size_t, size_t>> seriesTargets, parallelTargets;  // each button's chain, and gap or column
 
     OwnedArray<PluginComponent> nodes;
     OwnedArray<ConnectorComponent> connectors;

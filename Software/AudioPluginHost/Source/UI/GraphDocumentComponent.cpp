@@ -93,6 +93,11 @@ public:
         burgerButton.addListener(this);
         addAndMakeVisible(burgerButton);
 
+        // Another chain, with its own input and output, for another instrument or mic
+        addChainButton.setWantsKeyboardFocus(false);
+        addChainButton.onClick = [this] { owner.graphPanel->addChain(); };
+        addAndMakeVisible(addChainButton);
+
         pluginButton.addListener(this);
         addAndMakeVisible(pluginButton);
 
@@ -132,8 +137,10 @@ private:
         pluginButton.setBounds(r.removeFromRight(h + 16));
         pluginButton.setBorderSize(BorderSize<int>(h / 4));
 
+        addChainButton.setBounds(r.withSizeKeepingCentre(160, h - 8));
+
         titleLabel.setFont(Font(static_cast<float> (h) * 0.5f, Font::plain));
-        titleLabel.setBounds(r);
+        titleLabel.setBounds(r.withRight(addChainButton.getX()));
     }
 
     void buttonClicked(Button* b) override
@@ -151,6 +158,7 @@ private:
     Label titleLabel{ "titleLabel", "Studio" };
     ShapeButton burgerButton{ "burgerButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
     ShapeButton pluginButton{ "pluginButton", Colours::lightgrey, Colours::lightgrey, Colours::white };
+    TextButton addChainButton{ "Add chain" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TitleBarComponent)
 };
@@ -248,7 +256,12 @@ void GraphDocumentComponent::init()
 
     graphPanel.reset(new GraphEditorPanel(*graph, pluginList));
     graphPanel->addListener(this);
-    addAndMakeVisible(graphPanel.get());
+
+    // Scrolled by dragging, as there's no mouse wheel on the touchscreen and no room for scrollbars
+    chainViewport.setViewedComponent(graphPanel.get(), false);
+    chainViewport.setScrollBarsShown(false, false, true, true);
+    chainViewport.setScrollOnDragMode(Viewport::ScrollOnDragMode::all);
+    addAndMakeVisible(chainViewport);
     graphPlayer.setProcessor(&graph->graph);
 
     keyState.addListener(&graphPlayer.getMidiMessageCollector());
@@ -318,7 +331,19 @@ void GraphDocumentComponent::resized()
         if (blockControls->isShowingBlock())
             blockControls->setBounds(r.removeFromBottom(blockControlsHeight));
 
-        graphPanel->setBounds(r);
+        // The chain view makes itself bigger than this if the chains need scrolling
+        chainViewport.setBounds(r);
+        graphPanel->setSize(r.getWidth(), r.getHeight());
+
+        // Keep the selected block in view, e.g. when its controls have taken some of the space
+        if (activePlugin != nullptr)
+        {
+            const auto view = chainViewport.getViewArea();
+            const auto tile = activePlugin->getBounds();
+
+            if (! view.contains(tile))
+                chainViewport.setViewPosition(tile.getCentreX() - view.getWidth() / 2, tile.getCentreY() - view.getHeight() / 2);
+        }
 
         settingsPopup->setBounds(getLocalBounds());
 }
@@ -326,7 +351,7 @@ void GraphDocumentComponent::resized()
 
 void GraphDocumentComponent::createNewPlugin(const PluginDescriptionAndPreference& desc, Point<int> pos)
 {
-    graphPanel->createNewPlugin(desc, pos);
+    graphPanel->createNewPlugin(desc, graphPanel->getLocalPoint(this, pos));
 }
 
 void GraphDocumentComponent::releaseGraph()
@@ -452,6 +477,12 @@ void GraphDocumentComponent::onNodeDeleted(PluginComponent* removedComponent) {
         resized();
     }
 };
+
+void GraphDocumentComponent::onComponentsUpdated()
+{
+    if (activePlugin != nullptr && blockControls->isShowingBlock())
+        blockControls->setBlockName(activePlugin->getName(), activePlugin->getSubtitle());
+}
 
 void GraphDocumentComponent::showBlockControls()
 {

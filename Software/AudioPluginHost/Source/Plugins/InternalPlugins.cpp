@@ -439,6 +439,8 @@ InternalPluginFormat::InternalPluginFormat()
         [] { return std::make_unique<AudioProcessorGraph::AudioGraphIOProcessor> (AudioProcessorGraph::AudioGraphIOProcessor::audioOutputNode); },
         [] { return std::make_unique<AudioProcessorGraph::AudioGraphIOProcessor> (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode); },
         [] { return std::make_unique<LaneLevelProcessor>(); },
+        [] { return std::make_unique<ChainInputProcessor>(); },
+        [] { return std::make_unique<ChainOutputProcessor>(); },
 
         //[] { return std::make_unique<InternalPlugin> (std::make_unique<SineWaveSynth>()); },
         //[] { return std::make_unique<InternalPlugin> (std::make_unique<ReverbPlugin>()); },
@@ -539,4 +541,144 @@ void LaneLevelProcessor::setStateInformation (const void* data, int size)
 {
     if (size >= (int) sizeof (float))
         *level = MemoryInputStream (data, (size_t) size, false).readFloat();
+}
+
+//==============================================================================
+ChainEndProcessor::ChainEndProcessor (const BusesProperties& buses, const String& prefix, int defaultChoice)
+    : AudioPluginInstance (buses), blockNamePrefix (prefix)
+{
+    StringArray choices;
+
+    for (int i = 1; i <= maxChannels; ++i)
+        choices.add (String (i));
+
+    for (int i = 1; i < maxChannels; i += 2)
+        choices.add (String (i) + "+" + String (i + 1));
+
+    AudioProcessor::addParameter (channel = new AudioParameterChoice ({ "channel", 1 }, "Channel", choices, defaultChoice));
+    channel->addListener (this);
+}
+
+std::pair<int, int> ChainEndProcessor::getChosenChannels() const noexcept
+{
+    const int choice = channel->getIndex();
+
+    if (choice < maxChannels)
+        return { choice, -1 };
+
+    const int pair = choice - maxChannels;
+    return { pair * 2, pair * 2 + 1 };
+}
+
+String ChainEndProcessor::getBlockName() const
+{
+    return blockNamePrefix + " " + channel->getCurrentChoiceName();
+}
+
+void ChainEndProcessor::parameterValueChanged (int, float)
+{
+    // Lets the chain view know the block's name has changed
+    updateHostDisplay();
+}
+
+void ChainEndProcessor::fillInPluginDescription (PluginDescription& description) const
+{
+    description.name              = getName();
+    description.descriptiveName   = getName();
+    description.pluginFormatName  = InternalPluginFormat::getIdentifier();
+    description.category          = "I/O devices";
+    description.manufacturerName  = "JUCE";
+    description.version           = ProjectInfo::versionString;
+    description.fileOrIdentifier  = getName();
+    description.numInputChannels  = getTotalNumInputChannels();
+    description.numOutputChannels = getTotalNumOutputChannels();
+    description.uniqueId = description.deprecatedUid = getName().hashCode();
+}
+
+void ChainEndProcessor::getStateInformation (MemoryBlock& block)
+{
+    MemoryOutputStream (block, false).writeInt (channel->getIndex());
+}
+
+void ChainEndProcessor::setStateInformation (const void* data, int size)
+{
+    if (size >= (int) sizeof (int))
+        *channel = jlimit (0, channel->choices.size() - 1, MemoryInputStream (data, (size_t) size, false).readInt());
+}
+
+//==============================================================================
+ChainInputProcessor::ChainInputProcessor()
+    : ChainEndProcessor (BusesProperties().withInput  ("Device", AudioChannelSet::discreteChannels (maxChannels))
+                                          .withOutput ("Chain",  AudioChannelSet::stereo()),
+                         "Input", 0)
+{
+}
+
+bool ChainInputProcessor::isBusesLayoutSupported (const BusesLayout& layout) const
+{
+    return layout.getMainInputChannelSet() == AudioChannelSet::discreteChannels (maxChannels)
+            && layout.getMainOutputChannelSet() == AudioChannelSet::stereo();
+}
+
+void ChainInputProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
+{
+    // The device's channels arrive on all the buffer's channels, and the chain's two leave on the first two
+    const auto [first, second] = getChosenChannels();
+    const int numSamples = buffer.getNumSamples();
+
+    if (second < 0)
+    {
+        if (first != 0)
+            buffer.copyFrom (0, 0, buffer, first, 0, numSamples);
+
+        buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+    }
+    else if (first != 0)
+    {
+        buffer.copyFrom (0, 0, buffer, first, 0, numSamples);
+        buffer.copyFrom (1, 0, buffer, second, 0, numSamples);
+    }
+}
+
+//==============================================================================
+ChainOutputProcessor::ChainOutputProcessor()
+    : ChainEndProcessor (BusesProperties().withInput  ("Chain",  AudioChannelSet::stereo())
+                                          .withOutput ("Device", AudioChannelSet::discreteChannels (maxChannels)),
+                         "Output", getChoiceFor (0, true))
+{
+}
+
+bool ChainOutputProcessor::isBusesLayoutSupported (const BusesLayout& layout) const
+{
+    return layout.getMainInputChannelSet() == AudioChannelSet::stereo()
+            && layout.getMainOutputChannelSet() == AudioChannelSet::discreteChannels (maxChannels);
+}
+
+void ChainOutputProcessor::prepareToPlay (double, int maximumExpectedSamplesPerBlock)
+{
+    chainSignal.setSize (2, maximumExpectedSamplesPerBlock);
+}
+
+void ChainOutputProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
+{
+    // The chain's two channels arrive on the first two of the buffer's, which then all go to the device,
+    // so they're put aside before the buffer is cleared for the chosen channels to be filled in
+    const auto [first, second] = getChosenChannels();
+    const int numSamples = buffer.getNumSamples();
+
+    chainSignal.setSize (2, numSamples, false, false, true);
+    chainSignal.copyFrom (0, 0, buffer, 0, 0, numSamples);
+    chainSignal.copyFrom (1, 0, buffer, 1, 0, numSamples);
+    buffer.clear();
+
+    if (second < 0)
+    {
+        buffer.addFrom (first, 0, chainSignal, 0, 0, numSamples, 0.5f);
+        buffer.addFrom (first, 0, chainSignal, 1, 0, numSamples, 0.5f);
+    }
+    else
+    {
+        buffer.copyFrom (first, 0, chainSignal, 0, 0, numSamples);
+        buffer.copyFrom (second, 0, chainSignal, 1, 0, numSamples);
+    }
 }

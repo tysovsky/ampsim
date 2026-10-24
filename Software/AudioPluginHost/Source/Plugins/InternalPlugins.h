@@ -129,3 +129,93 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LaneLevelProcessor)
 };
+
+//==============================================================================
+/**
+    The two ends of a chain in the chain view. A ChainInputProcessor takes the
+    chain's signal from one of the audio device's input channels, or a pair of them,
+    and a ChainOutputProcessor sends it to one of the output channels or a pair.
+
+    Each has all the device's channels on its device side (up to maxChannels), so
+    picking another channel is a change to a parameter rather than to the graph's
+    connections. The chain side is stereo: a single input channel feeds both sides,
+    and a single output channel gets the two sides mixed.
+*/
+class ChainEndProcessor : public AudioPluginInstance,
+                          private AudioProcessorParameter::Listener
+{
+public:
+    static constexpr int maxChannels = 8;
+
+    /** Which channel, or pair: "1" to "8", then "1+2" to "7+8". */
+    AudioParameterChoice& getChannel() noexcept                                 { return *channel; }
+
+    /** The first device channel chosen, counting from 0, and the second of a pair, or -1. */
+    std::pair<int, int> getChosenChannels() const noexcept;
+
+    /** The choice for a channel, or for the pair it starts (an even channel), counting from 0. */
+    static int getChoiceFor (int firstChannel, bool isPair) noexcept    { return isPair ? maxChannels + firstChannel / 2 : firstChannel; }
+
+    /** What its tile is called, e.g. "Input 1" or "Output 1+2". */
+    String getBlockName() const;
+
+    //==============================================================================
+    void fillInPluginDescription (PluginDescription&) const override;
+    void releaseResources() override                                            {}
+
+    double getTailLengthSeconds() const override                                { return 0.0; }
+    bool acceptsMidi() const override                                           { return false; }
+    bool producesMidi() const override                                          { return false; }
+    AudioProcessorEditor* createEditor() override                               { return nullptr; }
+    bool hasEditor() const override                                             { return false; }
+
+    int getNumPrograms() override                                               { return 1; }
+    int getCurrentProgram() override                                            { return 0; }
+    void setCurrentProgram (int) override                                       {}
+    const String getProgramName (int) override                                  { return {}; }
+    void changeProgramName (int, const String&) override                        {}
+
+    void getStateInformation (MemoryBlock&) override;
+    void setStateInformation (const void* data, int size) override;
+
+protected:
+    ChainEndProcessor (const BusesProperties&, const String& blockNamePrefix, int defaultChoice);
+
+private:
+    void parameterValueChanged (int, float) override;
+    void parameterGestureChanged (int, bool) override                           {}
+
+    AudioParameterChoice* channel = nullptr;
+    const String blockNamePrefix;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChainEndProcessor)
+};
+
+class ChainInputProcessor final : public ChainEndProcessor
+{
+public:
+    ChainInputProcessor();
+
+    static String getIdentifier()                                               { return "Chain Input"; }
+    const String getName() const override                                       { return getIdentifier(); }
+    bool isBusesLayoutSupported (const BusesLayout&) const override;
+
+    void prepareToPlay (double, int) override                                   {}
+    void processBlock (AudioBuffer<float>&, MidiBuffer&) override;
+};
+
+class ChainOutputProcessor final : public ChainEndProcessor
+{
+public:
+    ChainOutputProcessor();
+
+    static String getIdentifier()                                               { return "Chain Output"; }
+    const String getName() const override                                       { return getIdentifier(); }
+    bool isBusesLayoutSupported (const BusesLayout&) const override;
+
+    void prepareToPlay (double, int maximumExpectedSamplesPerBlock) override;
+    void processBlock (AudioBuffer<float>&, MidiBuffer&) override;
+
+private:
+    AudioBuffer<float> chainSignal;
+};

@@ -119,6 +119,10 @@ void PluginGraph::insertPlugin (const PluginDescriptionAndPreference& desc,
         {
             levelNode->properties.set ("x", position.x);
             levelNode->properties.set ("y", position.y);
+
+            if (auto* node = graph.getNodeForId (added))
+                levelNode->properties.set ("chain", node->properties["chain"]);
+
             connectAudio (added, levelNode->nodeID);
             output = levelNode->nodeID;
         }
@@ -147,6 +151,99 @@ void PluginGraph::removeFromChain (const std::vector<NodeID>& nodes, const std::
         for (auto source : sources)
             for (auto destination : destinations)
                 connectAudio (source, destination);
+}
+
+PluginGraph::NodeID PluginGraph::addChainEnd (bool isInput, int chain, Point<double> position, int channelChoice,
+                                              const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations)
+{
+    std::unique_ptr<ChainEndProcessor> processor;
+
+    if (isInput)
+        processor = std::make_unique<ChainInputProcessor>();
+    else
+        processor = std::make_unique<ChainOutputProcessor>();
+
+    processor->getChannel() = channelChoice;
+
+    auto node = graph.addNode (std::move (processor));
+
+    if (node == nullptr)
+        return {};
+
+    node->properties.set ("x", position.x);
+    node->properties.set ("y", position.y);
+    node->properties.set ("chain", chain);
+
+    for (auto source : sources)
+        connectAudio (source, node->nodeID);
+
+    for (auto destination : destinations)
+        connectAudio (node->nodeID, destination);
+
+    connectDeviceChannels();
+    return node->nodeID;
+}
+
+void PluginGraph::connectDeviceChannels()
+{
+    using IOProcessor = AudioProcessorGraph::AudioGraphIOProcessor;
+
+    AudioProcessorGraph::Node* deviceInput = nullptr;
+    AudioProcessorGraph::Node* deviceOutput = nullptr;
+
+    for (auto* node : graph.getNodes())
+    {
+        if (auto* io = dynamic_cast<IOProcessor*> (node->getProcessor()))
+        {
+            if (io->getType() == IOProcessor::audioInputNode)   deviceInput = node;
+            if (io->getType() == IOProcessor::audioOutputNode)  deviceOutput = node;
+        }
+    }
+
+    // Connections to channels a new device doesn't have any more. Not with removeIllegalConnections(),
+    // which reports a change even when there's nothing to remove, and this is called after every change.
+    for (auto& connection : graph.getConnections())
+        if (! graph.isConnectionLegal (connection))
+            graph.removeConnection (connection);
+
+    const auto connect = [this] (AudioProcessorGraph::Connection connection)
+    {
+        if (! graph.isConnected (connection))
+            graph.addConnection (connection);
+    };
+
+    for (auto* node : graph.getNodes())
+    {
+        auto* processor = node->getProcessor();
+
+        if (deviceInput != nullptr && dynamic_cast<ChainInputProcessor*> (processor) != nullptr)
+            for (int channel = 0; channel < jmin (deviceInput->getProcessor()->getTotalNumOutputChannels(),
+                                                  processor->getTotalNumInputChannels()); ++channel)
+                connect ({ { deviceInput->nodeID, channel }, { node->nodeID, channel } });
+
+        if (deviceOutput != nullptr && dynamic_cast<ChainOutputProcessor*> (processor) != nullptr)
+            for (int channel = 0; channel < jmin (processor->getTotalNumOutputChannels(),
+                                                  deviceOutput->getProcessor()->getTotalNumInputChannels()); ++channel)
+                connect ({ { node->nodeID, channel }, { deviceOutput->nodeID, channel } });
+    }
+}
+
+void PluginGraph::disconnectAudioDevice()
+{
+    using IOProcessor = AudioProcessorGraph::AudioGraphIOProcessor;
+
+    const auto isDevice = [this] (NodeID id, IOProcessor::IODeviceType type)
+    {
+        auto* node = graph.getNodeForId (id);
+        auto* io = node != nullptr ? dynamic_cast<IOProcessor*> (node->getProcessor()) : nullptr;
+        return io != nullptr && io->getType() == type;
+    };
+
+    for (auto& connection : graph.getConnections())
+        if (! connection.source.isMIDI()
+             && (isDevice (connection.source.nodeID, IOProcessor::audioInputNode)
+                  || isDevice (connection.destination.nodeID, IOProcessor::audioOutputNode)))
+            graph.removeConnection (connection);
 }
 
 void PluginGraph::connectAudio (NodeID source, NodeID destination)
@@ -510,6 +607,10 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) noexcep
         if (node->properties.contains ("module"))
             e->setAttribute ("module", node->properties ["module"].toString());
 
+        // Which of the chain view's chains it's in
+        if (node->properties.contains ("chain"))
+            e->setAttribute ("chain", (int) node->properties ["chain"]);
+
         for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
         {
             auto type = (PluginWindow::Type) i;
@@ -636,6 +737,9 @@ void PluginGraph::createNodeFromXml (const XmlElement& xml)
 
             if (xml.hasAttribute ("module"))
                 node->properties.set ("module", xml.getStringAttribute ("module"));
+
+            if (xml.hasAttribute ("chain"))
+                node->properties.set ("chain", xml.getIntAttribute ("chain"));
 
             for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
             {

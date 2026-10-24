@@ -80,9 +80,9 @@ public:
     /** Adds a plugin, followed by a lane level stage, fed by every node in sources and feeding
         every node in destinations. In series, the direct connections from sources to destinations
         are removed so the audio goes through the new plugin; otherwise it runs in parallel with
-        whatever is already there. The level stage shares the plugin's position, which is how the
-        chain view pairs them up. If given, setUp is called with the new plugin's node before it's
-        connected, e.g. to configure it as a module.
+        whatever is already there. The level stage shares the plugin's position and chain, which is
+        how the chain view pairs them up. If given, setUp is called with the new plugin's node
+        before it's connected, e.g. to configure it as a module or say which chain it's in.
     */
     void insertPlugin (const PluginDescriptionAndPreference&,
                        std::vector<NodeID> sources, std::vector<NodeID> destinations,
@@ -94,6 +94,24 @@ public:
     */
     void removeFromChain (const std::vector<NodeID>& nodes, const std::vector<NodeID>& sources,
                           const std::vector<NodeID>& destinations, bool joinNeighbours);
+
+    /** Adds one end of a chain: a ChainInputProcessor, or a ChainOutputProcessor if isInput is
+        false, set to a channel choice, in a chain (its "chain" property), fed by every node in
+        sources and feeding every node in destinations, and connected to the audio device.
+    */
+    NodeID addChainEnd (bool isInput, int chain, Point<double> position, int channelChoice,
+                        const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations);
+
+    /** Connects all the audio device's input channels to every chain input, and every chain output
+        to all the device's output channels, as far as each goes. Call it again after the device
+        changes, as channels it didn't have before can't be connected until it has them.
+    */
+    void connectDeviceChannels();
+
+    /** Removes the connections between the audio device and the plugins, which is how graphs from
+        before chains had inputs and outputs of their own were wired.
+    */
+    void disconnectAudioDevice();
 
     AudioProcessorGraph::Node::Ptr getNodeForName (const String& name) const;
 
