@@ -95,6 +95,17 @@ public:
     void removeFromChain (const std::vector<NodeID>& nodes, const std::vector<NodeID>& sources,
                           const std::vector<NodeID>& destinations, bool joinNeighbours);
 
+    /** Moves a plugin and its level stage (if it has one) to another place in a chain, as they are.
+        They're disconnected from where they were, and if joinOldNeighbours is true, every node in
+        oldSources is then connected to every node in oldDestinations so the signal still flows past
+        the gap. Then they're given the new position and chain, and connected as insertPlugin()
+        connects a new plugin.
+    */
+    void moveInChain (NodeID plugin, NodeID level, int chain, Point<double> position,
+                      const std::vector<NodeID>& oldSources, const std::vector<NodeID>& oldDestinations,
+                      bool joinOldNeighbours, const std::vector<NodeID>& sources,
+                      const std::vector<NodeID>& destinations, bool inSeries);
+
     /** Adds one end of a chain: a ChainInputProcessor, or a ChainOutputProcessor if isInput is
         false, set to a channel choice, in a chain (its "chain" property), fed by every node in
         sources and feeding every node in destinations, and connected to the audio device.

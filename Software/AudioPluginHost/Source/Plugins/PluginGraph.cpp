@@ -153,6 +153,50 @@ void PluginGraph::removeFromChain (const std::vector<NodeID>& nodes, const std::
                 connectAudio (source, destination);
 }
 
+void PluginGraph::moveInChain (NodeID plugin, NodeID level, int chain, Point<double> position,
+                               const std::vector<NodeID>& oldSources, const std::vector<NodeID>& oldDestinations,
+                               bool joinOldNeighbours, const std::vector<NodeID>& sources,
+                               const std::vector<NodeID>& destinations, bool inSeries)
+{
+    const auto output = graph.getNodeForId (level) != nullptr ? level : plugin;
+
+    // Out of where it was: the audio into the plugin, and out of its level stage, but not between the two
+    for (auto& connection : graph.getConnections())
+        if (! connection.source.isMIDI() && (connection.destination.nodeID == plugin || connection.source.nodeID == output))
+            graph.removeConnection (connection);
+
+    if (joinOldNeighbours)
+        for (auto source : oldSources)
+            for (auto destination : oldDestinations)
+                connectAudio (source, destination);
+
+    for (auto id : { plugin, level })
+    {
+        if (auto* node = graph.getNodeForId (id))
+        {
+            node->properties.set ("x", position.x);
+            node->properties.set ("y", position.y);
+            node->properties.set ("chain", chain);
+        }
+    }
+
+    for (auto source : sources)
+    {
+        if (inSeries)
+            for (auto destination : destinations)
+                disconnectAudio (source, destination);
+
+        connectAudio (source, plugin);
+    }
+
+    for (auto destination : destinations)
+        connectAudio (output, destination);
+
+    // The new position on its own isn't a change to the graph, so the chain view's told
+    changed();
+    markChanged();
+}
+
 PluginGraph::NodeID PluginGraph::addChainEnd (bool isInput, int chain, Point<double> position, int channelChoice,
                                               const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations)
 {

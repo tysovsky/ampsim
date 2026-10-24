@@ -52,6 +52,12 @@ void PluginComponent::mouseDown(const MouseEvent& e)
 
     PopupMenu::dismissAllActiveMenus();
 
+    // A plugin's tile is picked up by dragging it, to move it somewhere else in the chains, so
+    // dragging it mustn't also scroll them. A chain's inputs and outputs stay where they are.
+    canBeDragged = panel.canMoveBlock(pluginID);
+    setViewportIgnoreDragFlag(canBeDragged);
+    grabOffset = e.getPosition();
+
     startTimer(750);
 }
 
@@ -63,9 +69,15 @@ void PluginComponent::mouseDrag(const MouseEvent& e)
         return;
     }
 
-    // Tiles sit in signal-chain order, so dragging doesn't move them; it just cancels a long press
+    // Moving cancels a long press, and moving further picks the tile up
     if (e.getDistanceFromDragStart() > 5)
         stopTimer();
+
+    if (canBeDragged && (isBeingDragged || e.getDistanceFromDragStart() > dragDistance))
+    {
+        isBeingDragged = true;
+        panel.dragBlock(*this, panel.getLocalPoint(nullptr, e.getScreenPosition()), grabOffset);
+    }
 }
 
 void PluginComponent::mouseUp(const MouseEvent& e)
@@ -82,6 +94,14 @@ void PluginComponent::mouseUp(const MouseEvent& e)
     }
 
     stopTimer();
+    setViewportIgnoreDragFlag(false);
+
+    if (isBeingDragged)
+    {
+        isBeingDragged = false;
+        panel.dropBlock(*this);
+        return;
+    }
 
     if (e.mouseWasDraggedSinceMouseDown())
     {

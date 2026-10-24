@@ -45,6 +45,9 @@ namespace
 
     // More rows than this won't fit legibly on the 400 px tall screen
     constexpr size_t maxParallelBlocks = 3;
+
+    // A dragged block goes to the + nearest the finger, if it's this close to one
+    constexpr float dropDistance = 60.0f;
 }
 
 //==============================================================================
@@ -54,22 +57,39 @@ class GraphEditorPanel::InsertButton final : public Button
 public:
     InsertButton() : Button ("Insert plugin") {}
 
+    /** Lit up while a dragged block would go here if it were let go. */
+    void setLit (bool shouldBeLit)
+    {
+        if (isLit != shouldBeLit)
+        {
+            isLit = shouldBeLit;
+            repaint();
+        }
+    }
+
     void paintButton (Graphics& g, bool, bool isButtonDown) override
     {
         auto area = getLocalBounds().toFloat().reduced (2.0f);
         auto colour = findColour (AppColourIds::signalPath);
+        const auto background = findColour (ResizableWindow::backgroundColourId);
 
-        // Fill the circle so the signal line doesn't show through it
-        g.setColour (findColour (ResizableWindow::backgroundColourId));
+        // Fill the circle so the signal line doesn't show through it, or with the colour while it's lit
+        g.setColour (isLit ? colour : background);
         g.fillEllipse (area);
 
         g.setColour (isButtonDown ? colour.brighter() : colour);
         g.drawEllipse (area, 2.5f);
 
+        if (isLit)
+            g.setColour (background);
+
         auto plus = area.reduced (area.getWidth() * 0.28f);
         g.fillRect (plus.withSizeKeepingCentre (plus.getWidth(), 3.0f));
         g.fillRect (plus.withSizeKeepingCentre (3.0f, plus.getHeight()));
     }
+
+private:
+    bool isLit = false;
 };
 
 //==============================================================================
@@ -122,8 +142,7 @@ void GraphEditorPanel::paint (Graphics& g)
 
     const auto centreY = [this] (NodeID id)
     {
-        auto* comp = getComponentForPlugin (id);
-        return comp != nullptr ? (float) comp->getBounds().getCentreY() : 0.0f;
+        return (float) getTileBounds (id).getCentreY();
     };
 
     for (size_t k = 0; k < chains.size(); ++k)
@@ -174,10 +193,10 @@ void GraphEditorPanel::paint (Graphics& g)
 
             for (auto id : columns[gap].nodes)
             {
-                if (auto* comp = getComponentForPlugin (id))
+                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
                 {
                     const auto y = centreY (id);
-                    drawPath ({ (float) comp->getRight(), y, x, y }, connected);
+                    drawPath ({ (float) tile.getRight(), y, x, y }, connected);
                     top = jmin (top, y);
                     bottom = jmax (bottom, y);
                 }
@@ -185,10 +204,10 @@ void GraphEditorPanel::paint (Graphics& g)
 
             for (auto id : columns[gap + 1].nodes)
             {
-                if (auto* comp = getComponentForPlugin (id))
+                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
                 {
                     const auto y = centreY (id);
-                    drawPath ({ x, y, (float) comp->getX(), y }, connected);
+                    drawPath ({ x, y, (float) tile.getX(), y }, connected);
                     top = jmin (top, y);
                     bottom = jmax (bottom, y);
                 }
@@ -197,6 +216,19 @@ void GraphEditorPanel::paint (Graphics& g)
             if (bottom > top)
                 drawPath ({ x, top, x, bottom }, connected);
         }
+    }
+
+    // A dashed outline where a dragged block's tile was
+    if (draggedBlock != NodeID())
+    {
+        Path outline;
+        outline.addRoundedRectangle (draggedBlockHome.toFloat().reduced (4.0f), 8.0f);
+
+        Path dashedOutline;
+        PathStrokeType (2.0f).createDashedStroke (dashedOutline, outline, dashes, numElementsInArray (dashes));
+
+        g.setColour (colour.withAlpha (0.6f));
+        g.fillPath (dashedOutline);
     }
 }
 
@@ -892,7 +924,14 @@ void GraphEditorPanel::layoutChains()
             {
                 if (auto* comp = getComponentForPlugin (column.nodes[row]))
                 {
-                    comp->setBounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
+                    const Rectangle<int> bounds (x, top + (int) row * (tile + rowSpacing), tile, tile);
+
+                    // A tile that's being dragged stays under the finger
+                    if (column.nodes[row] == draggedBlock)
+                        draggedBlockHome = bounds;
+                    else
+                        comp->setBounds (bounds);
+
                     comp->setLaneLevel (isParallel ? graph.graph.getNodeForId (column.levels[row]) : nullptr);
                 }
             }
@@ -927,7 +966,234 @@ void GraphEditorPanel::layoutChains()
         top += chainSpacing;
     }
 
+    if (draggedBlock != NodeID())
+    {
+        showDropTargets (draggedBlock, litTarget);
+    }
+    else
+    {
+        for (auto* button : seriesButtons)     button->setLit (false);
+        for (auto* button : parallelButtons)   button->setLit (false);
+    }
+
     repaint();
+}
+
+//==============================================================================
+std::optional<GraphEditorPanel::BlockPlace> GraphEditorPanel::findBlock (NodeID nodeID) const
+{
+    for (size_t k = 0; k < chains.size(); ++k)
+    {
+        for (size_t c = 0; c < chains[k].columns.size(); ++c)
+        {
+            const auto& blocks = chains[k].columns[c].nodes;
+            const auto it = std::find (blocks.begin(), blocks.end(), nodeID);
+
+            if (it != blocks.end())
+                return BlockPlace { k, c, (size_t) std::distance (blocks.begin(), it) };
+        }
+    }
+
+    return {};
+}
+
+bool GraphEditorPanel::canMoveBlock (NodeID nodeID) const
+{
+    return findBlock (nodeID).has_value() && getChainEnd (nodeID) == nullptr;
+}
+
+std::vector<GraphEditorPanel::DropTarget> GraphEditorPanel::getDropTargets() const
+{
+    std::vector<DropTarget> targets;
+
+    for (auto [chain, gap] : seriesTargets)
+        targets.push_back ({ chain, gap, true });
+
+    for (auto [chain, column] : parallelTargets)
+        targets.push_back ({ chain, column, false });
+
+    return targets;
+}
+
+GraphEditorPanel::InsertButton* GraphEditorPanel::getButtonFor (const DropTarget& target) const
+{
+    const auto& targets = target.inSeries ? seriesTargets : parallelTargets;
+    const auto& buttons = target.inSeries ? seriesButtons : parallelButtons;
+    const auto it = std::find (targets.begin(), targets.end(), std::make_pair (target.chain, target.index));
+
+    return it != targets.end() ? buttons[(int) std::distance (targets.begin(), it)] : nullptr;
+}
+
+bool GraphEditorPanel::canDrop (NodeID nodeID, const DropTarget& target) const
+{
+    const auto place = findBlock (nodeID);
+
+    if (! place.has_value() || target.chain >= chains.size())
+        return false;
+
+    const auto& chain = chains[target.chain];
+    const bool isSameChain = target.chain == place->chain;
+    const bool isAlone = chains[place->chain].columns[place->column].nodes.size() == 1;
+
+    // In series anywhere, except either side of a block that's on its own, which is where it is already
+    if (target.inSeries)
+        return target.index + 1 < chain.columns.size()
+                && ! (isSameChain && isAlone && (target.index + 1 == place->column || target.index == place->column));
+
+    // Alongside another column's blocks while it has room, but not alongside a chain's inputs or outputs
+    return target.index < chain.columns.size()
+            && ! isEndColumn (chain.columns[target.index])
+            && canAddParallel (chain, target.index)
+            && ! (isSameChain && target.index == place->column);
+}
+
+void GraphEditorPanel::showDropTargets (NodeID nodeID, std::optional<DropTarget> lit)
+{
+    for (auto& target : getDropTargets())
+    {
+        if (auto* button = getButtonFor (target))
+        {
+            const bool isLit = lit.has_value() && *lit == target;
+            button->setVisible (canDrop (nodeID, target));
+            button->setLit (isLit);
+
+            // Above the dragged tile, which is usually over it
+            if (isLit)
+                button->toFront (false);
+        }
+    }
+}
+
+void GraphEditorPanel::dragBlock (PluginComponent& tile, Point<int> finger, Point<int> grabOffset)
+{
+    if (draggedBlock != tile.pluginID)
+    {
+        draggedBlock = tile.pluginID;
+        draggedBlockHome = tile.getBounds();
+    }
+
+    // See-through, with the lit + on top of it (see showDropTargets()), so it shows where it'll go
+    tile.setTopLeftPosition (finger - grabOffset);
+    tile.setAlpha (0.7f);
+    tile.toFront (false);
+
+    // The + nearest the finger that it can go to, if the finger's close enough
+    litTarget.reset();
+    auto nearestDistance = dropDistance;
+
+    for (auto& target : getDropTargets())
+    {
+        if (auto* button = getButtonFor (target); button != nullptr && canDrop (draggedBlock, target))
+        {
+            const auto distance = button->getBounds().getCentre().toFloat().getDistanceFrom (finger.toFloat());
+
+            if (distance < nearestDistance)
+            {
+                litTarget = target;
+                nearestDistance = distance;
+            }
+        }
+    }
+
+    showDropTargets (draggedBlock, litTarget);
+
+    // Near the edge of the view, it scrolls to show more of the chains, if there are more
+    if (auto* viewport = findParentComponentOfClass<Viewport>())
+    {
+        const auto inViewport = viewport->getLocalPoint (this, finger);
+        viewport->autoScroll (inViewport.x, inViewport.y, 40, 12);
+    }
+
+    repaint();
+}
+
+void GraphEditorPanel::dropBlock (PluginComponent& tile)
+{
+    const auto nodeID = draggedBlock;
+    const auto target = litTarget;
+
+    draggedBlock = {};
+    litTarget.reset();
+    tile.setAlpha (1.0f);
+
+    if (nodeID == tile.pluginID && target.has_value())
+        moveBlock (nodeID, *target);
+
+    // Laid out again either way: where the block's gone, or back where it was
+    updateComponents();
+}
+
+void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
+{
+    const auto place = findBlock (nodeID);
+
+    if (! place.has_value() || ! canDrop (nodeID, target))
+        return;
+
+    const auto& columns = chains[place->chain].columns;
+
+    // A plugin is never in a chain's first or last column, which hold its inputs and outputs
+    if (place->column == 0 || place->column + 1 >= columns.size())
+        return;
+
+    const auto& column = columns[place->column];
+    const auto level = column.levels[place->row];
+    const bool isAlone = column.nodes.size() == 1;
+    const auto oldSources = columns[place->column - 1].getOutputs();
+    const auto oldDestinations = columns[place->column + 1].getInputs();
+
+    auto point = target.inSeries ? getSeriesInsertPoint (chains[target.chain], target.index)
+                                 : getParallelInsertPoint (chains[target.chain], target.index);
+
+    // It may be going next to where it is, so it's taken out of what's to feed it and what it's to
+    // feed. If it's on its own in its column, the blocks either side, which are joined up when it
+    // goes, take its place.
+    const auto takeOut = [&] (std::vector<NodeID>& ids, const std::vector<NodeID>& neighbours)
+    {
+        const auto end = std::remove_if (ids.begin(), ids.end(), [&] (NodeID id)
+        {
+            return id == nodeID || (level != NodeID() && id == level);
+        });
+
+        if (end == ids.end())
+            return;
+
+        ids.erase (end, ids.end());
+
+        if (isAlone)
+            ids.insert (ids.end(), neighbours.begin(), neighbours.end());
+    };
+
+    takeOut (point.sources, oldSources);
+    takeOut (point.destinations, oldDestinations);
+
+    // A block that's on its own has no mix bar to show its level, so one leaving a pair, and the one
+    // it leaves, are put back to full (as removeFromChain() does for the one left)
+    const auto setFullLevel = [this] (NodeID levelID)
+    {
+        if (auto* levelNode = graph.graph.getNodeForId (levelID))
+            if (auto* levelStage = dynamic_cast<LaneLevelProcessor*> (levelNode->getProcessor()))
+                levelStage->getLevel().setValueNotifyingHost (1.0f);
+    };
+
+    if (column.nodes.size() == 2)
+        setFullLevel (column.levels[1 - place->row]);
+
+    if (target.inSeries)
+        setFullLevel (level);
+
+    graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, isAlone,
+                       point.sources, point.destinations, point.inSeries);
+}
+
+Rectangle<int> GraphEditorPanel::getTileBounds (NodeID nodeID) const
+{
+    // A tile that's being dragged is drawn joined to the chain where it was
+    if (draggedBlock != NodeID() && nodeID == draggedBlock)
+        return draggedBlockHome;
+
+    auto* comp = getComponentForPlugin (nodeID);
+    return comp != nullptr ? comp->getBounds() : Rectangle<int>();
 }
 
 Component& GraphEditorPanel::getPopupParent()

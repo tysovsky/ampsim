@@ -61,6 +61,11 @@ private:
     AudioProcessorGraph::Node::Ptr pluginNode;
     bool isAdjustingLevel = false;
 
+    // Dragging a plugin's tile further than this picks it up, to drop on a + somewhere else
+    static constexpr int dragDistance = 12;
+    bool canBeDragged = false, isBeingDragged = false;
+    Point<int> grabOffset;     // where on the tile it was picked up
+
     GraphEditorPanel& panel;
     PluginGraph& graph;
     OwnedArray<PinComponent> pins;
