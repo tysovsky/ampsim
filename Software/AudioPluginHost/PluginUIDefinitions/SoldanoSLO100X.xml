@@ -5,7 +5,8 @@
 
   The amp's Normal channel is clean, or crunchy with its Crunch switch; the Overdrive channel
   is the high-gain lead sound. Each channel has its own gain and master. The amp modules each
-  set the channel and voice, so their controls don't have them; the whole plugin's do.
+  set the channel and voice, so their controls don't have them; the whole plugin's do. They
+  leave the cab off, for a cab module after them.
 
   The plugin lists its chorus with the effects in front of the amp; in case it's actually one
   of the effects after it, the chorus turns on both sections (everything else in them stays off).
@@ -72,21 +73,18 @@
     <Group name="Amps" icon="amp">
       <Module name="Normal (Clean)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Mode" value="Normal"/>
         <Set param="Amp Crunch" value="Clean"/>
         <Controls use="Amp"/>
       </Module>
       <Module name="Normal (Crunch)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Mode" value="Normal"/>
         <Set param="Amp Crunch" value="Crunch"/>
         <Controls use="Amp"/>
       </Module>
       <Module name="Overdrive (Lead)">
         <Set param="Active Amp Section" value="On"/>
-        <Set param="Active Cab Section" value="On"/>
         <Set param="Amp Mode" value="Overdrive"/>
         <Controls use="Amp"/>
       </Module>
