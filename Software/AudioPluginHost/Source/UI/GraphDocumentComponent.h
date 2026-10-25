@@ -5,6 +5,7 @@
 #include "GraphEditorPanel.h"
 #include "PluginComponent.h"
 #include "BlockControlsPanel.h"
+#include "BlockEditor.h"
 #include "AudioSettingsPopup.h"
 #include "RecordingsPopup.h"
 #include "../Audio/Recorder.h"
@@ -68,7 +69,10 @@ private:
 
     AudioProcessorPlayer graphPlayer;
     Recorder recorder{ graphPlayer };   // plays the graph to the device, recording what it sends
-    MidiKeyboardState keyState;
+    MidiKeyboardState keyState;         // the on-screen keyboard's notes, which go to the instruments
+
+    struct InstrumentMidi;
+    std::unique_ptr<InstrumentMidi> instrumentMidi;
     MidiOutput* midiOutput = nullptr;
 
     struct TooltipBar;
@@ -94,6 +98,7 @@ private:
 
     std::unique_ptr<AudioSettingsPopup> settingsPopup;
     std::unique_ptr<RecordingsPopup> recordingsPopup;
+    std::unique_ptr<BlockEditor> blockEditor;     // the selected block's full-screen editor, if it has one
     ScopedMessageBox messageBox;
 
     //==============================================================================

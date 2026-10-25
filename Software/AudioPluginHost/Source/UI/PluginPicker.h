@@ -66,6 +66,7 @@ private:
 
     Array<PluginDescription> getPluginTypes() const;
     const PluginModuleSet* findModuleSet (const PluginDescription&) const;
+    BlockIcon getWholePluginIcon (const PluginDescription&) const;
 
     Entry makeChoiceEntry (const String& name, const String& subtitle, BlockIcon, PluginChoice);
     Entry makePageEntry (const String& name, const String& subtitle, BlockIcon, std::function<Page()> makePage);

@@ -9,6 +9,7 @@ BlockIcon blockIconFromName (const String& name)
     if (name.equalsIgnoreCase ("dynamics")) return BlockIcon::dynamics;
     if (name.equalsIgnoreCase ("pitch"))    return BlockIcon::pitch;
     if (name.equalsIgnoreCase ("effect"))   return BlockIcon::effect;
+    if (name.equalsIgnoreCase ("synth"))    return BlockIcon::synth;
 
     return BlockIcon::plugin;
 }
@@ -24,6 +25,7 @@ String getBlockIconCategory (BlockIcon icon)
         case BlockIcon::dynamics:   return "Dynamics";
         case BlockIcon::pitch:      return "Pitch";
         case BlockIcon::effect:     return "Effects";
+        case BlockIcon::synth:      return "Synths";
         case BlockIcon::input:
         case BlockIcon::output: return "I/O";
         case BlockIcon::plugin:
@@ -224,6 +226,33 @@ void drawBlockIcon (Graphics& g, BlockIcon icon, Rectangle<float> area, Colour c
             path.addCentredArc (box.getX() + 0.52f * size, box.getCentreY(), 0.32f * size, 0.32f * size,
                                 0.0f, MathConstants<float>::pi * 0.25f, MathConstants<float>::pi * 0.75f, true);
             g.strokePath (path, stroke);
+            break;
+        }
+
+        case BlockIcon::synth:
+        {
+            // A keyboard: a panel with two knobs, then white keys with black ones between them
+            path.addRoundedRectangle (rect (0.06f, 0.22f, 0.94f, 0.80f), size * 0.06f);
+            path.startNewSubPath (point (0.06f, 0.46f));
+            path.lineTo (point (0.94f, 0.46f));
+
+            for (int i = 1; i < 7; ++i)
+            {
+                const auto x = 0.06f + (float) i * 0.88f / 7.0f;
+                path.startNewSubPath (point (x, 0.46f));
+                path.lineTo (point (x, 0.80f));
+            }
+
+            g.strokePath (path, stroke);
+
+            for (auto key : { 1, 2, 4, 5, 6 })
+            {
+                const auto x = 0.06f + (float) key * 0.88f / 7.0f;
+                g.fillRect (rect (x - 0.04f, 0.46f, x + 0.04f, 0.65f));
+            }
+
+            dot (0.22f, 0.34f, 0.045f);
+            dot (0.36f, 0.34f, 0.045f);
             break;
         }
 

@@ -108,6 +108,9 @@ public:
     /** The <Controls> from a block's definition file: its module's, or the whole plugin's. */
     const XmlElement* getBlockControls (AudioProcessorGraph::NodeID) const;
 
+    /** The <Editor> from a block's definition file, for its full-screen editor, or nullptr if it has none. */
+    const XmlElement* getBlockEditor (AudioProcessorGraph::NodeID) const;
+
     void paint (Graphics&) override;
     void resized() override;
 

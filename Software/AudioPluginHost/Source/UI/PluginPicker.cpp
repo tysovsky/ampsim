@@ -387,7 +387,14 @@ PluginPicker::Entry PluginPicker::makePluginEntry (const PluginDescription& type
         return makePageEntry (type.name, type.manufacturerName, BlockIcon::suite,
                               [this, type, set] { return makePluginPage (type, *set); });
 
-    return makeChoiceEntry (type.name, type.manufacturerName, BlockIcon::plugin, { PluginDescriptionAndPreference { type } });
+    return makeChoiceEntry (type.name, type.manufacturerName, getWholePluginIcon (type), { PluginDescriptionAndPreference { type } });
+}
+
+BlockIcon PluginPicker::getWholePluginIcon (const PluginDescription& type) const
+{
+    // What its definition file says it is (e.g. a synth), if it has one
+    const auto it = moduleSets.find (type.name);
+    return it != moduleSets.end() ? blockIconFromName (it->second.getPluginIcon()) : BlockIcon::plugin;
 }
 
 PluginPicker::Page PluginPicker::makePluginsPage()
@@ -446,7 +453,7 @@ PluginPicker::Page PluginPicker::makeTypesPage()
     Page page { "Add to chain", {} };
 
     for (auto icon : { BlockIcon::amp, BlockIcon::pedal, BlockIcon::cab, BlockIcon::eq,
-                       BlockIcon::dynamics, BlockIcon::pitch, BlockIcon::effect, BlockIcon::plugin })
+                       BlockIcon::dynamics, BlockIcon::pitch, BlockIcon::effect, BlockIcon::synth, BlockIcon::plugin })
     {
         const auto numEntries = makeTypePage (icon).entries.size();
 
@@ -463,13 +470,13 @@ PluginPicker::Page PluginPicker::makeTypePage (BlockIcon icon)
     Page page { getBlockIconCategory (icon), {} };
     const auto types = getPluginTypes();
 
-    // Plugins that aren't split into modules go with the plain plugin icon, along with any modules
-    // that don't say what kind they are. A plugin with modules is only added as its parts.
-    if (icon == BlockIcon::plugin)
-        for (auto& type : types)
-            if (findModuleSet (type) == nullptr)
-                page.entries.push_back (makeChoiceEntry (type.name, type.manufacturerName, BlockIcon::plugin,
-                                                         { PluginDescriptionAndPreference { type } }));
+    // Plugins that aren't split into modules go with the kind their definition file gives them (such
+    // as a synth), or the plain plugin icon, along with any modules that don't say what kind they are.
+    // A plugin with modules is only added as its parts.
+    for (auto& type : types)
+        if (findModuleSet (type) == nullptr && getWholePluginIcon (type) == icon)
+            page.entries.push_back (makeChoiceEntry (type.name, type.manufacturerName, icon,
+                                                     { PluginDescriptionAndPreference { type } }));
 
     // Every plugin's modules of this kind, labelled with the plugin they're from
     for (auto& type : types)

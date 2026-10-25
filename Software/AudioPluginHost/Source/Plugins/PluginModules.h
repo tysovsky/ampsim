@@ -26,10 +26,14 @@ struct PluginModule
     controls shown for the whole plugin, from a <Controls> element of its own.
 
     Controls are shown on the block controls panel when a block is selected; see
-    BlockControlsPanel for what a <Controls> element can contain. A
+    ControlStrip for what a <Controls> element can contain. A
     <Controls use="name"/> stands for a <Controls name="name"> inside <Modules>,
     for modules (or a module and the whole plugin) with the same controls. Any
     controls inside it go before the shared ones.
+
+    A plugin that isn't split into modules can say what kind of block it is with
+    <PluginControl icon="synth">, and can have an <Editor>: pages of controls
+    that open full screen from its block's controls (see BlockEditor).
 */
 class PluginModuleSet
 {
@@ -40,13 +44,19 @@ public:
     /** Reads every definition file in a folder, keyed by plugin name. */
     static std::map<String, PluginModuleSet> loadAll (const File& folder);
 
-    bool isEmpty() const noexcept                                { return modules.empty() && pluginControls == nullptr; }
+    bool isEmpty() const noexcept                                { return modules.empty() && pluginControls == nullptr && pluginEditor == nullptr; }
     bool hasModules() const noexcept                             { return ! modules.empty(); }
     const std::vector<PluginModule>& getModules() const noexcept { return modules; }
     const PluginModule* findModule (const String& name) const;
 
     /** The controls for the whole plugin, or nullptr if it has none. */
     const XmlElement* getPluginControls() const noexcept         { return pluginControls.get(); }
+
+    /** The whole plugin's full-screen editor, an <Editor> element, or nullptr if it has none. */
+    const XmlElement* getPluginEditor() const noexcept           { return pluginEditor.get(); }
+
+    /** What kind of block the whole plugin is (an icon name, e.g. "synth"), or empty if it doesn't say. */
+    const String& getPluginIcon() const noexcept                 { return pluginIcon; }
 
     /** Switches everything off apart from what the module's settings switch on. */
     void apply (AudioProcessor&, const PluginModule&) const;
@@ -57,11 +67,14 @@ private:
     String pluginName;
     PluginModule::Settings offSettings;
     std::vector<PluginModule> modules;
-    std::shared_ptr<const XmlElement> pluginControls;
+    std::shared_ptr<const XmlElement> pluginControls, pluginEditor;
+    String pluginIcon;
 };
 
 /** The folders definition files are read from: next to the app, then the old install location. */
 Array<File> getPluginDefinitionFolders();
 
-/** Finds a plugin's parameter by its name, as definition files refer to them. */
-AudioProcessorParameter* findParameterByName (AudioProcessor&, const String& name);
+/** Finds a plugin's parameter by its name, as definition files refer to them. Where a plugin
+    gives more than one parameter the same name, occurrence 2 is the second of them, and so on.
+*/
+AudioProcessorParameter* findParameterByName (AudioProcessor&, const String& name, int occurrence = 1);

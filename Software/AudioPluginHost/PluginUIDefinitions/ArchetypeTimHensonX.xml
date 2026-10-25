@@ -11,7 +11,7 @@
   without one takes its group's.
 
   <Controls> are what's shown along the bottom of the screen when the block is selected (see
-  BlockControlsPanel.h). knob="1" to "7" and switch="1" are the pedalboard's knobs and switch,
+  ControlStrip.h). knob="1" to "7" and switch="1" are the pedalboard's knobs and switch,
   as numbered in Controller.xml.
 
   A block is turned on and off by bypassing it, so a module's controls don't include a switch

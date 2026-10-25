@@ -4,6 +4,28 @@
 #include "ThemeManager.h"
 
 //==============================================================================
+// The MIDI the instruments play: every input device's, apart from the pedalboard's, whose knobs
+// and switch are the block controls' (its switch sends a note, which would otherwise play)
+struct GraphDocumentComponent::InstrumentMidi final : public MidiInputCallback
+{
+    explicit InstrumentMidi(MidiMessageCollector& c)
+        : collector(c), controllerDevice(ControllerConfig::load().getDeviceName())
+    {
+    }
+
+    void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override
+    {
+        if (source != nullptr && controllerDevice.isNotEmpty() && source->getName() == controllerDevice)
+            return;
+
+        collector.handleIncomingMidiMessage(source, message);
+    }
+
+    MidiMessageCollector& collector;
+    const String controllerDevice;
+};
+
+//==============================================================================
 struct GraphDocumentComponent::TooltipBar final : public Component,
                                                   private Timer
 {
@@ -290,9 +312,11 @@ GraphDocumentComponent::GraphDocumentComponent(AudioPluginFormatManager& fm,
 {
     init();
 
+    instrumentMidi = std::make_unique<InstrumentMidi>(graphPlayer.getMidiMessageCollector());
+
     deviceManager.addChangeListener(graphPanel.get());
     deviceManager.addAudioCallback(&recorder);
-    deviceManager.addMidiInputDeviceCallback({}, &graphPlayer.getMidiMessageCollector());
+    deviceManager.addMidiInputDeviceCallback({}, instrumentMidi.get());
     deviceManager.addChangeListener(this);
 }
 
@@ -358,6 +382,25 @@ void GraphDocumentComponent::init()
 
     recordingsPopup.reset(new RecordingsPopup(recorder));
     addChildComponent(recordingsPopup.get());
+
+    // The Edit button on a block's controls opens its editor, for a plugin whose definition file has one
+    blockEditor.reset(new BlockEditor(keyState));
+    addChildComponent(blockEditor.get());
+
+    // What the controls are showing is kept with the block, so it's saved too
+    blockEditor->onViewChange = [this] { graph->markChanged(); };
+    blockControls->onViewChange = [this] { graph->markChanged(); };
+
+    blockControls->onEdit = [this]
+    {
+        if (activePlugin == nullptr)
+            return;
+
+        auto node = graph->graph.getNodeForId(activePlugin->pluginID);
+
+        if (auto* editor = graphPanel->getBlockEditor(activePlugin->pluginID); editor != nullptr && node != nullptr)
+            blockEditor->show(*this, node, *editor, activePlugin->getName());
+    };
 }
 
 
@@ -425,7 +468,9 @@ void GraphDocumentComponent::releaseGraph()
 {
     recorder.stop();
     deviceManager.removeAudioCallback(&recorder);
-    deviceManager.removeMidiInputDeviceCallback({}, &graphPlayer.getMidiMessageCollector());
+
+    if (instrumentMidi != nullptr)
+        deviceManager.removeMidiInputDeviceCallback({}, instrumentMidi.get());
 
     if (graphPanel != nullptr)
     {
@@ -441,6 +486,9 @@ void GraphDocumentComponent::releaseGraph()
 
     if (blockControls != nullptr)
         blockControls->clear();
+
+    if (blockEditor != nullptr)
+        blockEditor->hide();
 
     graphPlayer.setProcessor(nullptr);
     graph = nullptr;
@@ -586,6 +634,9 @@ void GraphDocumentComponent::onActiveComponentChange(PluginComponent* activeComp
 }
 
 void GraphDocumentComponent::onNodeDeleted(PluginComponent* removedComponent) {
+    if (blockEditor->isShowing(removedComponent->pluginID))
+        blockEditor->hide();
+
     if (removedComponent == activePlugin) {
         activePlugin = nullptr;
         blockControls->clear();
@@ -608,7 +659,8 @@ void GraphDocumentComponent::showBlockControls()
 
         if (node != nullptr && controls != nullptr)
         {
-            blockControls->showBlock(node, *controls, activePlugin->getName(), activePlugin->getSubtitle(), activePlugin->getIcon());
+            blockControls->showBlock(node, *controls, activePlugin->getName(), activePlugin->getSubtitle(), activePlugin->getIcon(),
+                                     graphPanel->getBlockEditor(activePlugin->pluginID) != nullptr);
             return;
         }
     }

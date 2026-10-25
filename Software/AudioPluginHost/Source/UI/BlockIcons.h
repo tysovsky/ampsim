@@ -15,12 +15,13 @@ enum class BlockIcon
     dynamics,   // compressors, gates, de-essers, limiters
     pitch,      // pitch correction and harmonies
     effect,     // studio effects such as vocal delays and reverbs
+    synth,      // instruments, played from a MIDI keyboard
     input,
     output
 };
 
-/** The icon for a name used in definition files ("amp", "pedal", "cab", "eq", "dynamics", "pitch"
-    or "effect"); anything else is a plain plugin.
+/** The icon for a name used in definition files ("amp", "pedal", "cab", "eq", "dynamics", "pitch",
+    "effect" or "synth"); anything else is a plain plugin.
 */
 BlockIcon blockIconFromName (const String& name);
 

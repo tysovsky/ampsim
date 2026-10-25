@@ -67,8 +67,10 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/PluginModules.cpp
     Source/UI/AudioSettingsPopup.cpp
     Source/UI/BlockControlsPanel.cpp
+    Source/UI/BlockEditor.cpp
     Source/UI/BlockIcons.cpp
     Source/UI/ConnectorComponent.cpp
+    Source/UI/ControlStrip.cpp
     Source/UI/ControllerConfig.cpp
     Source/UI/GraphDocumentComponent.cpp
     Source/UI/GraphEditorPanel.cpp

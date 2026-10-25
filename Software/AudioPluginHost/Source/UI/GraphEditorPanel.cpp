@@ -483,8 +483,12 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
 
     auto* set = findModuleSet (*node);
 
-    if (set == nullptr || ! set->hasModules())
+    if (set == nullptr)
         return BlockIcon::plugin;
+
+    // A plugin that isn't split into modules may say what kind of block it is (e.g. a synth)
+    if (! set->hasModules())
+        return blockIconFromName (set->getPluginIcon());
 
     // One of a plugin's modules shows what kind of block it is; the whole plugin shows it's a suite
     const auto moduleName = node->properties["module"].toString();
@@ -517,6 +521,18 @@ const XmlElement* GraphEditorPanel::getBlockControls (AudioProcessorGraph::NodeI
 
     auto* module = set->findModule (moduleName);
     return module != nullptr ? module->controls.get() : nullptr;
+}
+
+const XmlElement* GraphEditorPanel::getBlockEditor (AudioProcessorGraph::NodeID nodeID) const
+{
+    // Only whole plugins have editors so far, not the modules of a plugin
+    auto* node = graph.graph.getNodeForId (nodeID);
+    auto* set = node != nullptr ? findModuleSet (*node) : nullptr;
+
+    if (set == nullptr || node->properties["module"].toString().isNotEmpty())
+        return nullptr;
+
+    return set->getPluginEditor();
 }
 
 ChainEndProcessor* GraphEditorPanel::getChainEnd (NodeID nodeID) const

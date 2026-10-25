@@ -114,8 +114,9 @@ public:
                         const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations);
 
     /** Connects all the audio device's input channels to every chain input, and every chain output
-        to all the device's output channels, as far as each goes. Call it again after the device
-        changes, as channels it didn't have before can't be connected until it has them.
+        to all the device's output channels, as far as each goes, and the MIDI input to every
+        instrument. Call it again after the device changes, as channels it didn't have before can't
+        be connected until it has them.
     */
     void connectDeviceChannels();
 
@@ -146,6 +147,10 @@ public:
 
     /** Saves any changes that are waiting to be saved now, e.g. before quitting. */
     void saveChanges();
+
+    /** Marks the graph as changed, to be saved soon, e.g. after a block's properties changed (what
+        its controls are showing), which nothing else tells it about. */
+    void markChanged() noexcept;
 
     //==============================================================================
     std::unique_ptr<XmlElement> createXml() const;
@@ -184,7 +189,6 @@ private:
     std::atomic<uint32> lastChangeTime { 0 };
     String lastSavedText;     // what was last written, so changes that don't change anything aren't
 
-    void markChanged() noexcept;
     void listenToNodes();
     void timerCallback() override;
 

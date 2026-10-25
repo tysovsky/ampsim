@@ -234,6 +234,7 @@ void PluginGraph::connectDeviceChannels()
 
     AudioProcessorGraph::Node* deviceInput = nullptr;
     AudioProcessorGraph::Node* deviceOutput = nullptr;
+    AudioProcessorGraph::Node* midiInput = nullptr;
 
     for (auto* node : graph.getNodes())
     {
@@ -241,6 +242,7 @@ void PluginGraph::connectDeviceChannels()
         {
             if (io->getType() == IOProcessor::audioInputNode)   deviceInput = node;
             if (io->getType() == IOProcessor::audioOutputNode)  deviceOutput = node;
+            if (io->getType() == IOProcessor::midiInputNode)    midiInput = node;
         }
     }
 
@@ -269,6 +271,14 @@ void PluginGraph::connectDeviceChannels()
             for (int channel = 0; channel < jmin (processor->getTotalNumOutputChannels(),
                                                   deviceOutput->getProcessor()->getTotalNumInputChannels()); ++channel)
                 connect ({ { node->nodeID, channel }, { deviceOutput->nodeID, channel } });
+
+        // Instruments play the MIDI from the keyboards (effects don't get it, so notes can't set
+        // off whatever they've mapped to MIDI)
+        if (midiInput != nullptr && processor->acceptsMidi())
+            if (auto* plugin = dynamic_cast<AudioPluginInstance*> (processor))
+                if (plugin->getPluginDescription().isInstrument)
+                    connect ({ { midiInput->nodeID, AudioProcessorGraph::midiChannelIndex },
+                               { node->nodeID, AudioProcessorGraph::midiChannelIndex } });
     }
 }
 
@@ -655,6 +665,11 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) noexcep
         if (node->properties.contains ("chain"))
             e->setAttribute ("chain", (int) node->properties ["chain"]);
 
+        // What its controls are showing, e.g. "view.engine1" for which engine's controls (see ControlStrip)
+        for (const auto& property : node->properties)
+            if (property.name.toString().startsWith ("view."))
+                e->setAttribute (property.name, property.value.toString());
+
         for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
         {
             auto type = (PluginWindow::Type) i;
@@ -784,6 +799,10 @@ void PluginGraph::createNodeFromXml (const XmlElement& xml)
 
             if (xml.hasAttribute ("chain"))
                 node->properties.set ("chain", xml.getIntAttribute ("chain"));
+
+            for (int i = 0; i < xml.getNumAttributes(); ++i)
+                if (xml.getAttributeName (i).startsWith ("view."))
+                    node->properties.set (xml.getAttributeName (i), xml.getAttributeValue (i));
 
             for (int i = 0; i < (int) PluginWindow::Type::numTypes; ++i)
             {

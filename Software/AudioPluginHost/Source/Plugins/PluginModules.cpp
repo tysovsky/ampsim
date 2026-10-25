@@ -91,6 +91,10 @@ PluginModuleSet PluginModuleSet::load (const File& definitionFile)
         return result;
 
     result.pluginName = xml->getStringAttribute ("name");
+    result.pluginIcon = xml->getStringAttribute ("icon");
+
+    if (const auto* editor = xml->getChildByName ("Editor"))
+        result.pluginEditor = std::make_shared<const XmlElement> (*editor);
 
     const auto* modulesElement = xml->getChildByName ("Modules");
     NamedControls namedControls;
@@ -191,10 +195,10 @@ Array<File> getPluginDefinitionFolders()
              File ("C:\\Program Files\\StudioHost\\PluginControls") };
 }
 
-AudioProcessorParameter* findParameterByName (AudioProcessor& processor, const String& name)
+AudioProcessorParameter* findParameterByName (AudioProcessor& processor, const String& name, int occurrence)
 {
     for (auto* parameter : processor.getParameters())
-        if (parameter->getName (128) == name)
+        if (parameter->getName (128) == name && --occurrence <= 0)
             return parameter;
 
     return nullptr;

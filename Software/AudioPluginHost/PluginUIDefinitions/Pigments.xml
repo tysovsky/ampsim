@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Arturia Pigments, a synth: two engines (each a wavetable, analog, sample, harmonic or modal
+  engine) and a utility engine, two filters, an amp envelope, modulation (envelopes, LFOs,
+  functions and more), three FX buses and a sequencer. It plays the MIDI from the keyboards, and
+  can take audio in too, through its utility engine.
+
+  The block's controls are its presets and the four macros, which presets set up to change their
+  sound the most (Pigments names them for each preset, but doesn't tell the host the names). The
+  pedalboard's knobs 1 to 4 are the macros, and its switch steps to the next preset. Edit opens
+  pages for the rest.
+
+  The plugin doesn't tell the host which kind of engine, filter or effect a preset uses, or the
+  presets' names, so those are changed in its own window. Each engine page has a Type to pick
+  which engine's controls to show; pick the one the preset uses. The FX page has each slot's
+  mix and switch, which every kind of effect has.
+
+  See ArchetypeTimHensonX.xml for how controls work, and BlockEditor.h for the editor's pages.
+-->
+<PluginControl name="Pigments" icon="synth">
+  <Controls>
+    <Trigger param="Previous Preset" label="Preset" text="&#8249; Prev"/>
+    <Trigger param="Next Preset" text="Next &#8250;" switch="1"/>
+    <Knob param="Macro 1" label="Macro 1" knob="1"/>
+    <Knob param="Macro 2" label="Macro 2" knob="2"/>
+    <Knob param="Macro 3" label="Macro 3" knob="3"/>
+    <Knob param="Macro 4" label="Macro 4" knob="4"/>
+    <Knob param="Mod Wheel" label="Mod Wheel" knob="5"/>
+    <Knob param="F1 Cutoff" label="Cutoff" knob="6"/>
+    <Knob param="Master Volume" label="Volume" knob="7"/>
+  </Controls>
+
+  <Editor>
+    <Page name="Play">
+      <Row label="Sound">
+        <Trigger param="Previous Preset" label="Preset" text="&#8249; Prev"/>
+        <Trigger param="Next Preset" text="Next &#8250;" switch="1"/>
+        <Knob param="Macro 1" label="Macro 1" knob="1"/>
+        <Knob param="Macro 2" label="Macro 2" knob="2"/>
+        <Knob param="Macro 3" label="Macro 3" knob="3"/>
+        <Knob param="Macro 4" label="Macro 4" knob="4"/>
+        <Knob param="Mod Wheel" label="Mod Wheel" knob="5"/>
+        <Knob param="Master Volume" label="Volume" knob="7"/>
+      </Row>
+      <Keyboard/>
+    </Page>
+    <Page name="Engine 1">
+      <Row label="Engine 1">
+        <Switch param="Engine 1 Bypass" label="Bypass"/>
+        <Knob param="Engine 1 Volume" label="Volume"/>
+        <Knob param="Engine1 Filter Mix" label="F1 / F2"/>
+        <Knob param="Coarse" label="Coarse"/>
+        <Knob param="Fine" label="Fine"/>
+        <View name="engine1" label="Type" options="Wavetable|Analog|Sample|Harmonic|Modal" style="buttons"/>
+      </Row>
+      <Row label="Engine">
+        <Show view="engine1" value="Wavetable">
+          <Knob param="Wavetable 1 Position" label="Position"/>
+          <Knob param="Wavetable 1 Ph Dist Amount" label="Phase Dist"/>
+          <Knob param="Wavetable 1 Fold Amount" label="Fold"/>
+          <Knob param="Wavetable 1 Mod Amount" label="FM"/>
+          <Knob param="Wavetable 1 Unison Voices" label="Voices"/>
+          <Knob param="Wavetable 1 Unison Detune" label="Detune"/>
+          <Choice param="Wavetable 1 Unison Mode" label="Unison"/>
+        </Show>
+        <Show view="engine1" value="Analog">
+          <Knob param="Analog 1 O1 Volume" label="Osc 1"/>
+          <Knob param="Analog 1 O2 Volume" label="Osc 2"/>
+          <Knob param="Analog 1 O3 Volume" label="Osc 3"/>
+          <Knob param="Analog 1 O1 Width" label="Width 1"/>
+          <Knob param="Analog 1 O2 Coarse" label="Tune 2"/>
+          <Knob param="Analog 1 O3 Coarse" label="Tune 3"/>
+          <Knob param="Analog 1 Noise Volume" label="Noise"/>
+          <Knob param="Analog 1 Drift" label="Drift"/>
+          <Knob param="Analog 1 Unison Voices" label="Voices"/>
+          <Knob param="Analog 1 Unison Detune" label="Detune"/>
+        </Show>
+        <Show view="engine1" value="Sample">
+          <Knob param="Sample 1 Start" label="Start"/>
+          <Knob param="Sample 1 Scan" label="Scan"/>
+          <Knob param="Sample 1 Grain Size" label="Grain"/>
+          <Knob param="Sample 1 Density" label="Density"/>
+          <Knob param="Sample 1 Random Pitch" label="Rnd Pitch"/>
+          <Knob param="Sample 1 Width" label="Width"/>
+          <Knob param="Sample 1 Unison Voices" label="Voices"/>
+          <Knob param="Sample 1 Unison Detune" label="Detune"/>
+          <Choice param="Sample 1 Current Sample" label="Sample" style="list"/>
+        </Show>
+        <Show view="engine1" value="Harmonic">
+          <Knob param="Harmonic 1 Tilt" label="Tilt"/>
+          <Knob param="Harmonic 1 Parity" label="Parity"/>
+          <Knob param="Harmonic 1 Offset" label="Offset"/>
+          <Knob param="Harmonic 1 Ratio" label="Ratio"/>
+          <Knob param="Harmonic 1 Shape Depth" label="Shape"/>
+          <Knob param="Harmonic 1 Shape Morph" label="Morph"/>
+          <Knob param="Harmonic 1 Partials" label="Partials"/>
+          <Choice param="Harmonic 1 Window Mode" label="Window"/>
+        </Show>
+        <Show view="engine1" value="Modal">
+          <Knob param="Modal 1 Decay" label="Decay"/>
+          <Knob param="Modal 1 Brilliance" label="Brilliance"/>
+          <Knob param="Modal 1 Partials" label="Partials"/>
+          <Knob param="Modal 1 Warp Amount" label="Warp"/>
+          <Knob param="Modal 1 Bass" label="Bass"/>
+          <Knob param="Modal 1 Width" label="Width"/>
+          <Knob param="Modal 1 Detune" label="Detune"/>
+          <Knob param="Modal 1 Resonator Volume" label="Resonator"/>
+          <Knob param="Modal 1 Collision Volume" label="Collision"/>
+          <Knob param="Modal 1 Friction Volume" label="Friction"/>
+        </Show>
+      </Row>
+    </Page>
+    <Page name="Engine 2">
+      <Row label="Engine 2">
+        <Switch param="Engine 2 Bypass" label="Bypass"/>
+        <Knob param="Engine 2 Volume" label="Volume"/>
+        <Knob param="Engine2 Filter Mix" label="F1 / F2"/>
+        <Knob param="Coarse" occurrence="2" label="Coarse"/>
+        <Knob param="Fine" occurrence="2" label="Fine"/>
+        <View name="engine2" label="Type" options="Wavetable|Analog|Sample|Harmonic|Modal" style="buttons"/>
+      </Row>
+      <Row label="Engine">
+        <Show view="engine2" value="Wavetable">
+          <Knob param="Wavetable 2 Position" label="Position"/>
+          <Knob param="Wavetable 2 Ph Dist Amount" label="Phase Dist"/>
+          <Knob param="Wavetable 2 Fold Amount" label="Fold"/>
+          <Knob param="Wavetable 2 Mod Amount" label="FM"/>
+          <Knob param="Wavetable 2 Unison Voices" label="Voices"/>
+          <Knob param="Wavetable 2 Unison Detune" label="Detune"/>
+          <Choice param="Wavetable 2 Unison Mode" label="Unison"/>
+        </Show>
+        <Show view="engine2" value="Analog">
+          <Knob param="Analog 2 O1 Volume" label="Osc 1"/>
+          <Knob param="Analog 2 O2 Volume" label="Osc 2"/>
+          <Knob param="Analog 2 O3 Volume" label="Osc 3"/>
+          <Knob param="Analog 2 O1 Width" label="Width 1"/>
+          <Knob param="Analog 2 O2 Coarse" label="Tune 2"/>
+          <Knob param="Analog 2 O3 Coarse" label="Tune 3"/>
+          <Knob param="Analog 2 Noise Volume" label="Noise"/>
+          <Knob param="Analog 2 Drift" label="Drift"/>
+          <Knob param="Analog 2 Unison Voices" label="Voices"/>
+          <Knob param="Analog 2 Unison Detune" label="Detune"/>
+        </Show>
+        <Show view="engine2" value="Sample">
+          <Knob param="Sample 2 Start" label="Start"/>
+          <Knob param="Sample 2 Scan" label="Scan"/>
+          <Knob param="Sample 2 Grain Size" label="Grain"/>
+          <Knob param="Sample 2 Density" label="Density"/>
+          <Knob param="Sample 2 Random Pitch" label="Rnd Pitch"/>
+          <Knob param="Sample 2 Width" label="Width"/>
+          <Knob param="Sample 2 Unison Voices" label="Voices"/>
+          <Knob param="Sample 2 Unison Detune" label="Detune"/>
+          <Choice param="Sample 2 Current Sample" label="Sample" style="list"/>
+        </Show>
+        <Show view="engine2" value="Harmonic">
+          <Knob param="Harmonic 2 Tilt" label="Tilt"/>
+          <Knob param="Harmonic 2 Parity" label="Parity"/>
+          <Knob param="Harmonic 2 Offset" label="Offset"/>
+          <Knob param="Harmonic 2 Ratio" label="Ratio"/>
+          <Knob param="Harmonic 2 Shape Depth" label="Shape"/>
+          <Knob param="Harmonic 2 Shape Morph" label="Morph"/>
+          <Knob param="Harmonic 2 Partials" label="Partials"/>
+          <Choice param="Harmonic 2 Window Mode" label="Window"/>
+        </Show>
+        <Show view="engine2" value="Modal">
+          <Knob param="Modal 2 Decay" label="Decay"/>
+          <Knob param="Modal 2 Brilliance" label="Brilliance"/>
+          <Knob param="Modal 2 Partials" label="Partials"/>
+          <Knob param="Modal 2 Warp Amount" label="Warp"/>
+          <Knob param="Modal 2 Bass" label="Bass"/>
+          <Knob param="Modal 2 Width" label="Width"/>
+          <Knob param="Modal 2 Detune" label="Detune"/>
+          <Knob param="Modal 2 Resonator Volume" label="Resonator"/>
+          <Knob param="Modal 2 Collision Volume" label="Collision"/>
+          <Knob param="Modal 2 Friction Volume" label="Friction"/>
+        </Show>
+      </Row>
+    </Page>
+    <Page name="Filters">
+      <Row label="Filter 1">
+        <Switch param="F1 On/Off" label="Filter"/>
+        <Knob param="F1 Cutoff" label="Cutoff"/>
+        <Knob param="F1 Resonance" label="Resonance"/>
+        <Knob param="F1 Drive" label="Drive"/>
+        <Knob param="F1 Volume" label="Volume"/>
+        <Knob param="F1 Pan" label="Pan"/>
+        <Knob param="Filter Routing" label="Routing"/>
+      </Row>
+      <Row label="Filter 2">
+        <Switch param="F2 On/Off" label="Filter"/>
+        <Knob param="F2 Cutoff" label="Cutoff"/>
+        <Knob param="F2 Resonance" label="Resonance"/>
+        <Knob param="F2 Drive" label="Drive"/>
+        <Knob param="F2 Volume" label="Volume"/>
+        <Knob param="F2 Pan" label="Pan"/>
+        <Knob param="Amp Mod Amount" label="Amp Mod"/>
+      </Row>
+    </Page>
+    <Page name="Env">
+      <Row label="Amp">
+        <Knob param="Env Amp Attack" label="Attack"/>
+        <Knob param="Env Amp Decay" label="Decay"/>
+        <Knob param="Env Amp Sustain" label="Sustain"/>
+        <Knob param="Env Amp Release" label="Release"/>
+        <Knob param="Env Amp AttackCurve" label="Atk Curve"/>
+        <Knob param="Env Amp DecayCurve" label="Dec Curve"/>
+        <Choice param="Env Amp Mode" label="Mode"/>
+      </Row>
+      <Row label="Mod Env">
+        <View name="modEnv" label="Envelope" options="Env 2|Env 3"/>
+        <Show view="modEnv" value="Env 2">
+          <Knob param="Env 2 Attack" label="Attack"/>
+          <Knob param="Env 2 Decay" label="Decay"/>
+          <Knob param="Env 2 Sustain" label="Sustain"/>
+          <Knob param="Env 2 Release" label="Release"/>
+          <Knob param="Env 2 AttackCurve" label="Atk Curve"/>
+          <Knob param="Env 2 DecayCurve" label="Dec Curve"/>
+          <Choice param="Env 2 Mode" label="Mode"/>
+        </Show>
+        <Show view="modEnv" value="Env 3">
+          <Knob param="Env 3 Attack" label="Attack"/>
+          <Knob param="Env 3 Decay" label="Decay"/>
+          <Knob param="Env 3 Sustain" label="Sustain"/>
+          <Knob param="Env 3 Release" label="Release"/>
+          <Knob param="Env 3 AttackCurve" label="Atk Curve"/>
+          <Knob param="Env 3 DecayCurve" label="Dec Curve"/>
+          <Choice param="Env 3 Mode" label="Mode"/>
+        </Show>
+      </Row>
+    </Page>
+    <Page name="LFO">
+      <Row label="LFO">
+        <View name="lfo" label="LFO" options="LFO 1|LFO 2|LFO 3"/>
+        <Show view="lfo" value="LFO 1">
+          <Knob param="LFO 1 Frequency" label="Rate"/>
+          <Knob param="LFO 1 Waveform" label="Wave"/>
+          <Knob param="LFO 1 Symmetry" label="Symmetry"/>
+          <Knob param="LFO 1 Smooth" label="Smooth"/>
+          <Knob param="LFO 1 Initial Phase" label="Phase"/>
+          <Knob param="LFO 1 Fade" label="Fade"/>
+          <Knob param="LFO 1 KeyTrack" label="Key Track"/>
+          <Switch param="LFO 1 Polarity" label="Polarity"/>
+        </Show>
+        <Show view="lfo" value="LFO 2">
+          <Knob param="LFO 2 Frequency" label="Rate"/>
+          <Knob param="LFO 2 Waveform" label="Wave"/>
+          <Knob param="LFO 2 Symmetry" label="Symmetry"/>
+          <Knob param="LFO 2 Smooth" label="Smooth"/>
+          <Knob param="LFO 2 Initial Phase" label="Phase"/>
+          <Knob param="LFO 2 Fade" label="Fade"/>
+          <Knob param="LFO 2 KeyTrack" label="Key Track"/>
+          <Switch param="LFO 2 Polarity" label="Polarity"/>
+        </Show>
+        <Show view="lfo" value="LFO 3">
+          <Knob param="LFO 3 Frequency" label="Rate"/>
+          <Knob param="LFO 3 Waveform" label="Wave"/>
+          <Knob param="LFO 3 Symmetry" label="Symmetry"/>
+          <Knob param="LFO 3 Smooth" label="Smooth"/>
+          <Knob param="LFO 3 Initial Phase" label="Phase"/>
+          <Knob param="LFO 3 Fade" label="Fade"/>
+          <Knob param="LFO 3 KeyTrack" label="Key Track"/>
+          <Switch param="LFO 3 Polarity" label="Polarity"/>
+        </Show>
+      </Row>
+      <Row label="Function">
+        <View name="function" label="Function" options="Function 1|Function 2|Function 3"/>
+        <Show view="function" value="Function 1">
+          <Knob param="Function 1 Rate" label="Rate"/>
+          <Knob param="Function 1 Scale" label="Scale"/>
+          <Switch param="Function 1 Polarity" label="Polarity"/>
+        </Show>
+        <Show view="function" value="Function 2">
+          <Knob param="Function 2 Rate" label="Rate"/>
+          <Knob param="Function 2 Scale" label="Scale"/>
+          <Switch param="Function 2 Polarity" label="Polarity"/>
+        </Show>
+        <Show view="function" value="Function 3">
+          <Knob param="Function 3 Rate" label="Rate"/>
+          <Knob param="Function 3 Scale" label="Scale"/>
+          <Switch param="Function 3 Polarity" label="Polarity"/>
+        </Show>
+      </Row>
+    </Page>
+    <Page name="FX">
+      <Row label="Bus">
+        <View name="fxBus" label="Bus" options="Bus A|Bus B|Aux"/>
+        <Show view="fxBus" value="Bus A">
+          <Switch param="FX Bus A Bypass" label="Bypass"/>
+          <Knob param="Bus A Volume" label="Volume"/>
+        </Show>
+        <Show view="fxBus" value="Bus B">
+          <Switch param="FX Bus B Bypass" label="Bypass"/>
+          <Knob param="Bus B Volume" label="Volume"/>
+        </Show>
+        <Show view="fxBus" value="Aux">
+          <Switch param="Aux Bus Bypass" label="Bypass"/>
+          <Knob param="Aux Send Volume" label="Send"/>
+          <Knob param="Aux Return Volume" label="Return"/>
+        </Show>
+        <Switch param="FX Global Bypass" label="Bypass All"/>
+      </Row>
+      <Row label="Slots">
+        <Show view="fxBus" value="Bus A">
+          <Switch param="FX A1 Bypass" label="Slot 1"/>
+          <Knob param="FX A1 Dry/Wet" label="Mix 1"/>
+          <Switch param="FX A2 Bypass" label="Slot 2"/>
+          <Knob param="FX A2 Dry/Wet" label="Mix 2"/>
+          <Switch param="FX A3 Bypass" label="Slot 3"/>
+          <Knob param="FX A3 Dry/Wet" label="Mix 3"/>
+        </Show>
+        <Show view="fxBus" value="Bus B">
+          <Switch param="FX B1 Bypass" label="Slot 1"/>
+          <Knob param="FX B1 Dry/Wet" label="Mix 1"/>
+          <Switch param="FX B2 Bypass" label="Slot 2"/>
+          <Knob param="FX B2 Dry/Wet" label="Mix 2"/>
+          <Switch param="FX B3 Bypass" label="Slot 3"/>
+          <Knob param="FX B3 Dry/Wet" label="Mix 3"/>
+        </Show>
+        <Show view="fxBus" value="Aux">
+          <Switch param="FX AUX1 Bypass" label="Slot 1"/>
+          <Knob param="FX AUX1 Dry/Wet" label="Mix 1"/>
+          <Switch param="FX AUX2 Bypass" label="Slot 2"/>
+          <Knob param="FX AUX2 Dry/Wet" label="Mix 2"/>
+          <Switch param="FX AUX3 Bypass" label="Slot 3"/>
+          <Knob param="FX AUX3 Dry/Wet" label="Mix 3"/>
+        </Show>
+      </Row>
+    </Page>
+    <Page name="Voice">
+      <Row label="Voice">
+        <Knob param="Master Tune" label="Tune"/>
+        <Knob param="Glide" label="Glide"/>
+        <Choice param="Glide Mode" label="Glide Mode"/>
+        <Choice param="Bend Up" label="Bend Up" style="list"/>
+        <Choice param="Bend Down" label="Bend Down" style="list"/>
+        <Knob param="Voice Pan" label="Pan"/>
+      </Row>
+      <Row label="Utility">
+        <Switch param="Utility Bypass" label="Bypass"/>
+        <Knob param="Sub Osc Volume" label="Sub"/>
+        <Knob param="Sub Osc Filter Mix" label="Sub F1 / F2"/>
+        <Knob param="Utility Osc Coarse" label="Sub Tune"/>
+        <Knob param="Noise 1 Volume" label="Noise"/>
+        <Knob param="Noise 1 Filter Mix" label="Noise F1 / F2"/>
+        <Choice param="Utility" label="Source 2" labels="Noise 2|Audio In"/>
+      </Row>
+    </Page>
+    <Page name="Seq">
+      <Row label="Sequencer">
+        <Knob param="Swing" label="Swing"/>
+        <Choice param="Rate Type" label="Rate Type" style="list"/>
+        <Choice param="Sync Rate" occurrence="4" label="Rate" style="list"/>
+        <Choice param="Pitch Transpose" label="Transpose" style="list"/>
+        <Choice param="Playback" label="Playback" style="list"/>
+        <Switch param="Polymetry" label="Polymetry"/>
+      </Row>
+    </Page>
+  </Editor>
+</PluginControl>
