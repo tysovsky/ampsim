@@ -535,6 +535,19 @@ const XmlElement* GraphEditorPanel::getBlockEditor (AudioProcessorGraph::NodeID 
     return set->getPluginEditor();
 }
 
+AudioProcessorGraph::Node::Ptr GraphEditorPanel::getLevelStage (AudioProcessorGraph::NodeID nodeID) const
+{
+    if (const auto place = findBlock (nodeID))
+    {
+        const auto& column = chains[place->chain].columns[place->column];
+
+        if (place->row < column.levels.size())
+            return graph.graph.getNodeForId (column.levels[place->row]);
+    }
+
+    return nullptr;
+}
+
 ChainEndProcessor* GraphEditorPanel::getChainEnd (NodeID nodeID) const
 {
     auto* node = graph.graph.getNodeForId (nodeID);

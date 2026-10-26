@@ -79,6 +79,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/UI/PluginComponent.cpp
     Source/UI/PluginPicker.cpp
     Source/UI/RecordingsPopup.cpp
+    Source/UI/SoundVisualiser.cpp
     Source/UI/TextEntryPopup.cpp
     Source/UI/ThemeManager.cpp)
 

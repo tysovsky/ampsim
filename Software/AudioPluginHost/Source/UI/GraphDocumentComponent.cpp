@@ -384,7 +384,7 @@ void GraphDocumentComponent::init()
     addChildComponent(recordingsPopup.get());
 
     // The Edit button on a block's controls opens its editor, for a plugin whose definition file has one
-    blockEditor.reset(new BlockEditor(keyState));
+    blockEditor.reset(new BlockEditor());
     addChildComponent(blockEditor.get());
 
     // What the controls are showing is kept with the block, so it's saved too
@@ -399,7 +399,7 @@ void GraphDocumentComponent::init()
         auto node = graph->graph.getNodeForId(activePlugin->pluginID);
 
         if (auto* editor = graphPanel->getBlockEditor(activePlugin->pluginID); editor != nullptr && node != nullptr)
-            blockEditor->show(*this, node, *editor, activePlugin->getName());
+            blockEditor->show(*this, node, *editor, activePlugin->getName(), graphPanel->getLevelStage(activePlugin->pluginID));
     };
 }
 

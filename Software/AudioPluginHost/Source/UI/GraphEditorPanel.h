@@ -111,6 +111,9 @@ public:
     /** The <Editor> from a block's definition file, for its full-screen editor, or nullptr if it has none. */
     const XmlElement* getBlockEditor (AudioProcessorGraph::NodeID) const;
 
+    /** The lane level stage that follows a block, which has its sound, or nullptr if it has none. */
+    AudioProcessorGraph::Node::Ptr getLevelStage (AudioProcessorGraph::NodeID) const;
+
     void paint (Graphics&) override;
     void resized() override;
 

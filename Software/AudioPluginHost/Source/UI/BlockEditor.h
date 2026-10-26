@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "ControlStrip.h"
+#include "SoundVisualiser.h"
 #include "TouchLookAndFeel.h"
 
 //==============================================================================
@@ -12,24 +13,26 @@
 
       <Editor>
         <Page name="Play">
+          <Visualiser/>                          the block's sound, drawn (see SoundVisualiser),
+                                                 above the rows, which go along the bottom
           <Row label="Macros"> ... </Row>        a row of controls, as in <Controls> (see ControlStrip)
           <Row> ... </Row>                       the rows share the page's height
-          <Keyboard/>                            a keyboard to play, along the bottom
         </Page>
         ...
       </Editor>
 
-    The keyboard plays the host's on-screen keyboard, which goes to every
-    instrument. The editor opens on the page it was last showing for the block.
+    The editor opens on the page it was last showing for the block.
 */
 class BlockEditor final : public Component
 {
 public:
-    explicit BlockEditor (MidiKeyboardState&);
+    BlockEditor();
     ~BlockEditor() override;
 
-    /** Opens over the whole of a component for a block, from its definition file's <Editor>. */
-    void show (Component& parent, AudioProcessorGraph::Node::Ptr, const XmlElement& editor, const String& title);
+    /** Opens over the whole of a component for a block, from its definition file's <Editor>. The
+        block's lane level stage, if it has one, is where a <Visualiser> gets its sound from. */
+    void show (Component& parent, AudioProcessorGraph::Node::Ptr, const XmlElement& editor, const String& title,
+               AudioProcessorGraph::Node::Ptr levelStage);
     void hide();
 
     /** True while it's open for this block. */
@@ -44,14 +47,12 @@ public:
     void parentSizeChanged() override;
 
 private:
-    class Keyboard;
-
     void showPage (int index);
 
-    MidiKeyboardState& keyState;
     TouchLookAndFeel lookAndFeel;
 
-    AudioProcessorGraph::Node::Ptr node;    // held so the plugin outlives its controls
+    AudioProcessorGraph::Node::Ptr node;        // held so the plugin outlives its controls
+    AudioProcessorGraph::Node::Ptr levelStage;
     std::unique_ptr<XmlElement> editor;
     int currentPage = 0;
 
@@ -60,7 +61,7 @@ private:
     TextButton closeButton { "Close" };
     OwnedArray<ControlStrip> rows;
     StringArray rowLabels;
-    std::unique_ptr<Keyboard> keyboard;
+    std::unique_ptr<SoundVisualiser> visualiser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlockEditor)
 };

@@ -520,16 +520,45 @@ void LaneLevelProcessor::prepareToPlay (double sampleRate, int)
     // A short ramp so moving the level doesn't click
     smoothedLevel.reset (sampleRate, 0.05);
     smoothedLevel.setCurrentAndTargetValue (level->get());
+    recentInputSampleRate = sampleRate;
 }
 
 void LaneLevelProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
 {
+    // What's come in, kept for drawing the sound (see copyRecentInput())
+    if (const int numChannels = jmin (2, buffer.getNumChannels()); numChannels > 0)
+    {
+        auto end = recentInputEnd.load (std::memory_order_relaxed);
+
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            float sum = 0.0f;
+
+            for (int channel = 0; channel < numChannels; ++channel)
+                sum += buffer.getSample (channel, i);
+
+            recentInput[(size_t) end].store (sum / (float) numChannels, std::memory_order_relaxed);
+            end = (end + 1) & (recentInputSize - 1);
+        }
+
+        recentInputEnd.store (end, std::memory_order_release);
+    }
+
     smoothedLevel.setTargetValue (level->get());
 
     const auto startLevel = smoothedLevel.getCurrentValue();
     smoothedLevel.skip (buffer.getNumSamples());
 
     buffer.applyGainRamp (0, buffer.getNumSamples(), startLevel, smoothedLevel.getCurrentValue());
+}
+
+void LaneLevelProcessor::copyRecentInput (float* destination, int numSamples) const noexcept
+{
+    numSamples = jmin (numSamples, recentInputSize);
+    const auto end = recentInputEnd.load (std::memory_order_acquire);
+
+    for (int i = 0; i < numSamples; ++i)
+        destination[i] = recentInput[(size_t) ((end - numSamples + i) & (recentInputSize - 1))].load (std::memory_order_relaxed);
 }
 
 void LaneLevelProcessor::getStateInformation (MemoryBlock& block)

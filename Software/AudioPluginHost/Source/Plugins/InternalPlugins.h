@@ -99,6 +99,16 @@ public:
     /** The lane's level, from silent (0) to unity gain (1). */
     AudioParameterFloat& getLevel() noexcept                                    { return *level; }
 
+    /** How many of the last samples in it keeps, for drawing the sound. */
+    static constexpr int recentInputSize = 2048;
+
+    /** Copies the last samples to come in (mixed to mono, before the level is applied), up to
+        recentInputSize of them, oldest first. It can be called while the audio runs, from another
+        thread; a copy may take in a few newer samples, which doesn't matter for drawing. */
+    void copyRecentInput (float* destination, int numSamples) const noexcept;
+
+    double getRecentInputSampleRate() const noexcept                            { return recentInputSampleRate.load(); }
+
     //==============================================================================
     const String getName() const override                                       { return getIdentifier(); }
     void fillInPluginDescription (PluginDescription&) const override;
@@ -126,6 +136,10 @@ public:
 private:
     AudioParameterFloat* level = nullptr;
     SmoothedValue<float> smoothedLevel;
+
+    std::array<std::atomic<float>, recentInputSize> recentInput {};
+    std::atomic<int> recentInputEnd { 0 };          // where the next sample goes
+    std::atomic<double> recentInputSampleRate { 48000.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LaneLevelProcessor)
 };

@@ -8,7 +8,8 @@
   The block's controls are its presets and the four macros, which presets set up to change their
   sound the most (Pigments names them for each preset, but doesn't tell the host the names). The
   pedalboard's knobs 1 to 4 are the macros, and its switch steps to the next preset. Edit opens
-  pages for the rest.
+  pages for the rest; the first draws the sound above the presets and macros. A MIDI controller
+  plays it.
 
   The plugin doesn't tell the host which kind of engine, filter or effect a preset uses, or the
   presets' names, so those are changed in its own window. Each engine page has a Type to pick
@@ -32,6 +33,7 @@
 
   <Editor>
     <Page name="Play">
+      <Visualiser/>
       <Row label="Sound">
         <Trigger param="Previous Preset" label="Preset" text="&#8249; Prev"/>
         <Trigger param="Next Preset" text="Next &#8250;" switch="1"/>
@@ -42,7 +44,6 @@
         <Knob param="Mod Wheel" label="Mod Wheel" knob="5"/>
         <Knob param="Master Volume" label="Volume" knob="7"/>
       </Row>
-      <Keyboard/>
     </Page>
     <Page name="Engine 1">
       <Row label="Engine 1">
