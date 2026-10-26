@@ -49,6 +49,11 @@ class ChainEndProcessor;
     plugin in parallel to that column, or another input or output at either end.
     A plugin's tile can be dragged onto a + to move the plugin there, as it is, or
     off into empty space to delete it.
+
+    The audio goes along links, drawn from one tile's right-hand end to another's
+    left: any block can feed any block after it in its chain, so the columns are
+    where blocks sit rather than how they're wired. Dragging from the dot at either
+    end of a tile to another block links them, and holding a link removes it.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -99,6 +104,19 @@ public:
     */
     void dropBlock (PluginComponent&);
 
+    /** Whether a touch on a block's tile is on the dot at either end of it, where dragging links
+        it to another block. If it is, the link starts being dragged out from there.
+    */
+    bool beginLink (PluginComponent&, Point<int> positionOnTile);
+
+    /** Called as a link is dragged out, with the finger's position in this panel. The blocks it can
+        link to are outlined, and the one it would link to if it were let go now is lit up.
+    */
+    void dragLink (Point<int> finger);
+
+    /** Called when a link being dragged out is let go: it links the blocks if it was over one it can. */
+    void endLink();
+
     /** Lets a name be typed for one of the chains' inputs or outputs, on the on-screen keyboard. */
     void renameChainEnd (AudioProcessorGraph::NodeID);
 
@@ -115,6 +133,7 @@ public:
     AudioProcessorGraph::Node::Ptr getLevelStage (AudioProcessorGraph::NodeID) const;
 
     void paint (Graphics&) override;
+    void paintOverChildren (Graphics&) override;
     void resized() override;
 
     void mouseDown (const MouseEvent&) override;
@@ -185,6 +204,22 @@ private:
         int top = 0, bottom = 0;
     };
 
+    /** Audio going from one block to another. */
+    struct Link
+    {
+        NodeID from, to;                // the blocks, as their tiles show them
+        NodeID source;                  // where the audio leaves the first: its level stage, or the block itself
+    };
+
+    /** A link being dragged out from one end of a block, to link it to another. */
+    struct LinkDrag
+    {
+        NodeID block;
+        bool fromOutput = true;         // from its right-hand end, to a block after it, or its left, to one before
+        Point<int> finger;
+        NodeID target;                  // the block it would link to if it were let go now, if any
+    };
+
     /** Where a + adds a block: in which chain, between what, and at what position. */
     struct InsertPoint
     {
@@ -216,7 +251,17 @@ private:
     ChainEndProcessor* getChainEnd (NodeID) const;
     std::vector<Chain> findChains() const;
     bool isEndColumn (const Column&) const;
-    bool isAudioConnected (const Column& sources, const Column& destinations) const;
+    std::vector<Link> findLinks() const;
+    NodeID getOutputOf (NodeID block) const;
+    std::pair<std::vector<NodeID>, std::vector<NodeID>> getNeighbours (NodeID block) const;
+    bool canLink (NodeID from, NodeID to) const;
+    Point<float> getEnd (NodeID block, bool isOutput) const;
+    static Path getLinkPath (Point<float> start, Point<float> end);
+    Path getLinkPath (const Link&) const;
+    std::optional<Link> findLinkAt (Point<float>) const;
+    void beginHold (Point<float>);
+    void cancelHold();
+    bool endHold();     // true if the hold removed a link
     bool canAddParallel (const Chain&, size_t column) const;
     void layoutChains();
     void addChainEndsToOldGraph();
@@ -241,6 +286,11 @@ private:
     TextEntryPopup textEntry;
     std::unique_ptr<XmlElement> chainEndControls;   // the inputs' and outputs' channel choice
     std::vector<Chain> chains;
+    std::vector<Link> links;
+    std::optional<LinkDrag> linkDrag;
+    std::optional<Link> pendingLink;        // touched, and lit up as heldLink if it's still held a moment later
+    std::optional<Link> heldLink;           // being held, to remove it
+    bool removedHeldLink = false;
     OwnedArray<InsertButton> seriesButtons, parallelButtons;
     bool isUpdatingComponents = false, needsAnotherUpdate = false;
     std::vector<std::pair<size_t, size_t>> seriesTargets, parallelTargets;  // each button's chain, and gap or column
@@ -260,8 +310,6 @@ private:
     ListenerList<Listener> listeners;
 
     //==============================================================================
-    Point<int> originalTouchPos;
-
     void timerCallback() override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphEditorPanel)

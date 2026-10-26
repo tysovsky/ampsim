@@ -148,9 +148,32 @@ void PluginGraph::removeFromChain (const std::vector<NodeID>& nodes, const std::
         graph.removeNode (node);
 
     if (joinNeighbours)
-        for (auto source : sources)
-            for (auto destination : destinations)
-                connectAudio (source, destination);
+        joinAcrossGap (sources, destinations);
+}
+
+bool PluginGraph::connectBlocks (NodeID source, NodeID destination)
+{
+    // Not round in a loop: the destination mustn't already feed the source, however indirectly
+    if (source == destination || graph.isAnInputTo (destination, source))
+        return false;
+
+    connectAudio (source, destination);
+    return true;
+}
+
+void PluginGraph::disconnectBlocks (NodeID source, NodeID destination)
+{
+    disconnectAudio (source, destination);
+}
+
+void PluginGraph::joinAcrossGap (const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations)
+{
+    // Only where a source no longer reaches a destination some other way, so taking one of two
+    // parallel blocks out doesn't add a path straight past the other
+    for (auto source : sources)
+        for (auto destination : destinations)
+            if (! graph.isAnInputTo (source, destination))
+                connectBlocks (source, destination);
 }
 
 void PluginGraph::moveInChain (NodeID plugin, NodeID level, int chain, Point<double> position,
@@ -166,9 +189,7 @@ void PluginGraph::moveInChain (NodeID plugin, NodeID level, int chain, Point<dou
             graph.removeConnection (connection);
 
     if (joinOldNeighbours)
-        for (auto source : oldSources)
-            for (auto destination : oldDestinations)
-                connectAudio (source, destination);
+        joinAcrossGap (oldSources, oldDestinations);
 
     for (auto id : { plugin, level })
     {

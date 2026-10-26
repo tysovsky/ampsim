@@ -52,6 +52,35 @@ namespace
     // Let go further than this from every tile (and further than dropDistance from every +), a
     // dragged block is deleted
     constexpr int emptySpaceMargin = 24;
+
+    // How long a link's held to remove it, how soon it lights up (not straight away, so a quick tap on
+    // a + doesn't flash it), and how close to it a finger has to be
+    constexpr int linkHoldMilliseconds = 600;
+    constexpr int linkLightUpMilliseconds = 150;
+    constexpr float linkTouchDistance = 16.0f;
+
+    // A link past the next column goes this far under the blocks it passes
+    constexpr float linkDetourGap = 6.0f;
+
+    // The dots at each end of a tile, where links start and end, and how close to one a touch starts
+    // dragging a link out (at least, as the tiles shrink)
+    constexpr float linkDotRadius = 6.0f;
+    constexpr float minLinkReach = 20.0f;
+
+    // A link being dragged out goes to the block nearest the finger, if it's this close to one
+    constexpr float linkDropDistance = 40.0f;
+
+    // Tiles are drawn this far inside their bounds, leaving room for their shadows
+    constexpr float tileInset = 4.0f;
+
+    const Colour removingColour { 0xffe0342c };
+
+    template <typename T>
+    void addOnce (std::vector<T>& items, T item)
+    {
+        if (std::find (items.begin(), items.end(), item) == items.end())
+            items.push_back (item);
+    }
 }
 
 //==============================================================================
@@ -59,7 +88,31 @@ namespace
 class GraphEditorPanel::InsertButton final : public Button
 {
 public:
-    InsertButton() : Button ("Insert plugin") {}
+    explicit InsertButton (GraphEditorPanel& p) : Button ("Insert plugin"), panel (p) {}
+
+    // A + on the main line sits on a link, so holding it holds the link, to remove it
+    void mouseDown (const MouseEvent& e) override
+    {
+        panel.beginHold (getBounds().getCentre().toFloat());
+        Button::mouseDown (e);
+    }
+
+    void mouseDrag (const MouseEvent& e) override
+    {
+        if (e.getDistanceFromDragStart() > 5)
+            panel.cancelHold();
+
+        Button::mouseDrag (e);
+    }
+
+    void mouseUp (const MouseEvent& e) override
+    {
+        // Not a tap as well, if it removed the link
+        if (panel.endHold())
+            setState (buttonNormal);
+
+        Button::mouseUp (e);
+    }
 
     /** Lit up while a dragged block would go here if it were let go. */
     void setLit (bool shouldBeLit)
@@ -93,6 +146,7 @@ public:
     }
 
 private:
+    GraphEditorPanel& panel;
     bool isLit = false;
 };
 
@@ -184,42 +238,16 @@ void GraphEditorPanel::paint (Graphics& g)
                 drawPath ({ right, lowestTile, right, y }, false);
         }
 
-        // The rail in each gap: every tile in the column before it feeds in, and every tile in the
-        // column after it is fed from it, so parallel blocks split and merge here
-        for (size_t gap = 0; gap < chain.busX.size() && gap + 1 < columns.size(); ++gap)
-        {
-            const auto x = (float) chain.busX[gap];
-            const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
+    }
 
-            // Tiles are drawn for the blocks; their level stages sit invisibly just after them
-            auto top = std::numeric_limits<float>::max();
-            auto bottom = std::numeric_limits<float>::lowest();
+    // Each link, from the block the audio leaves to the block it goes into, with the one being held
+    // (to remove it) lit up
+    for (auto& link : links)
+    {
+        const bool isHeld = heldLink.has_value() && heldLink->from == link.from && heldLink->to == link.to;
 
-            for (auto id : columns[gap].nodes)
-            {
-                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
-                {
-                    const auto y = centreY (id);
-                    drawPath ({ (float) tile.getRight(), y, x, y }, connected);
-                    top = jmin (top, y);
-                    bottom = jmax (bottom, y);
-                }
-            }
-
-            for (auto id : columns[gap + 1].nodes)
-            {
-                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
-                {
-                    const auto y = centreY (id);
-                    drawPath ({ x, y, (float) tile.getX(), y }, connected);
-                    top = jmin (top, y);
-                    bottom = jmax (bottom, y);
-                }
-            }
-
-            if (bottom > top)
-                drawPath ({ x, top, x, bottom }, connected);
-        }
+        g.setColour (isHeld ? removingColour : colour);
+        g.strokePath (getLinkPath (link), PathStrokeType (isHeld ? 6.0f : 3.0f, PathStrokeType::curved, PathStrokeType::rounded));
     }
 
     // A dashed outline where a dragged block's tile was
@@ -236,13 +264,80 @@ void GraphEditorPanel::paint (Graphics& g)
     }
 }
 
+void GraphEditorPanel::paintOverChildren (Graphics& g)
+{
+    const auto colour = findColour (AppColourIds::signalPath);
+    const auto background = findColour (ResizableWindow::backgroundColourId);
+
+    // A dot at each end of each tile, where links can be dragged out from, filled where one's linked.
+    // Inputs only have an output end, and outputs an input end.
+    for (auto& chain : chains)
+    {
+        for (size_t c = 0; c < chain.columns.size(); ++c)
+        {
+            for (auto id : chain.columns[c].nodes)
+            {
+                if (id == draggedBlock)
+                    continue;
+
+                for (const bool isOutput : { false, true })
+                {
+                    if (isOutput ? c + 1 >= chain.columns.size() : c == 0)
+                        continue;
+
+                    const bool isLinked = std::any_of (links.begin(), links.end(), [&] (const Link& link)
+                    {
+                        return isOutput ? link.from == id : link.to == id;
+                    });
+
+                    const auto dot = Rectangle<float> (2.0f * linkDotRadius, 2.0f * linkDotRadius).withCentre (getEnd (id, isOutput));
+
+                    g.setColour (isLinked ? colour : background);
+                    g.fillEllipse (dot);
+                    g.setColour (colour);
+                    g.drawEllipse (dot, 2.0f);
+                }
+            }
+        }
+    }
+
+    if (! linkDrag.has_value())
+        return;
+
+    // While a link's being dragged out, the blocks it can link to, the one it would link to now lit up
+    for (auto& chain : chains)
+    {
+        for (auto& column : chain.columns)
+        {
+            for (auto id : column.nodes)
+            {
+                if (! (linkDrag->fromOutput ? canLink (linkDrag->block, id) : canLink (id, linkDrag->block)))
+                    continue;
+
+                const bool isTarget = id == linkDrag->target;
+                const auto tile = getTileBounds (id).toFloat().reduced (tileInset);
+
+                g.setColour (colour.withAlpha (isTarget ? 0.35f : 0.12f));
+                g.fillRoundedRectangle (tile, 8.0f);
+                g.setColour (colour);
+                g.drawRoundedRectangle (tile, 8.0f, isTarget ? 3.0f : 1.5f);
+            }
+        }
+    }
+
+    // The link itself, from the dot it was dragged out of to the finger, or to the block it would link to
+    const auto start = getEnd (linkDrag->block, linkDrag->fromOutput);
+    const auto end = linkDrag->target != NodeID() ? getEnd (linkDrag->target, ! linkDrag->fromOutput)
+                                                  : linkDrag->finger.toFloat();
+
+    g.setColour (colour);
+    g.strokePath (linkDrag->fromOutput ? getLinkPath (start, end) : getLinkPath (end, start),
+                  PathStrokeType (3.0f, PathStrokeType::curved, PathStrokeType::rounded));
+}
+
 void GraphEditorPanel::mouseDown (const MouseEvent& e)
 {
-    if (true || isOnTouchDevice())
-    {
-        originalTouchPos = e.position.toInt();
-        startTimer (750);
-    }
+    beginHold (e.position);
 
     if (e.mods.isPopupMenu())
         showPopupMenu (e.position.toInt());
@@ -250,20 +345,45 @@ void GraphEditorPanel::mouseDown (const MouseEvent& e)
 
 void GraphEditorPanel::mouseUp (const MouseEvent& e)
 {
-    if (true || isOnTouchDevice())
-    {
-        stopTimer();
-    }
-
     // A tap on the background clears the selection; a drag is scrolling
-    if (e.mouseWasClicked())
+    if (! endHold() && e.mouseWasClicked())
         activeComponentChanged(nullptr);
 }
 
 void GraphEditorPanel::mouseDrag (const MouseEvent& e)
 {
-    if (true || isOnTouchDevice() && e.getDistanceFromDragStart() > 5)
-        stopTimer();
+    // Moving lets go of a link, as it's scrolling
+    if (e.getDistanceFromDragStart() > 5)
+        cancelHold();
+}
+
+void GraphEditorPanel::beginHold (Point<float> position)
+{
+    cancelHold();
+    pendingLink = findLinkAt (position);
+
+    if (pendingLink.has_value())
+        startTimer (linkLightUpMilliseconds);
+}
+
+void GraphEditorPanel::cancelHold()
+{
+    stopTimer();
+    pendingLink.reset();
+    removedHeldLink = false;
+
+    if (heldLink.has_value())
+    {
+        heldLink.reset();
+        repaint();
+    }
+}
+
+bool GraphEditorPanel::endHold()
+{
+    const bool removed = removedHeldLink;
+    cancelHold();
+    return removed;
 }
 
 void GraphEditorPanel::createNewPlugin (const PluginDescriptionAndPreference& desc, Point<int> position)
@@ -319,10 +439,33 @@ static std::function<void (AudioProcessorGraph::Node&)> getModuleSetUp (const Pl
 
 GraphEditorPanel::InsertPoint GraphEditorPanel::getSeriesInsertPoint (const Chain& chain, size_t gap) const
 {
-    // A new column halfway between its neighbours' positions, so it sorts between them
+    // A new column halfway between its neighbours' positions, so it sorts between them. It goes into
+    // the links from the column before it straight to the column after; with none, it's between
+    // every block either side.
     const auto& columns = chain.columns;
+    const auto isIn = [] (const Column& column, NodeID id)
+    {
+        return std::find (column.nodes.begin(), column.nodes.end(), id) != column.nodes.end();
+    };
 
-    return { chain.id, columns[gap].getOutputs(), columns[gap + 1].getInputs(),
+    std::vector<NodeID> sources, destinations;
+
+    for (auto& link : links)
+    {
+        if (isIn (columns[gap], link.from) && isIn (columns[gap + 1], link.to))
+        {
+            addOnce (sources, link.source);
+            addOnce (destinations, link.to);
+        }
+    }
+
+    if (sources.empty())
+    {
+        sources = columns[gap].getOutputs();
+        destinations = columns[gap + 1].getInputs();
+    }
+
+    return { chain.id, sources, destinations,
              { (columns[gap].position + columns[gap + 1].position) / 2.0, 0.0 }, true };
 }
 
@@ -451,8 +594,10 @@ void GraphEditorPanel::removeFromChain (NodeID nodeID)
                     if (auto* level = dynamic_cast<LaneLevelProcessor*> (remaining->getProcessor()))
                         level->getLevel().setValueNotifyingHost (1.0f);
 
-            // If it was the last plugin in its column, join the columns either side so the signal still flows
-            graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
+            // What fed it then feeds what it fed, where that isn't reached some other way, so the signal
+            // still flows
+            const auto [sources, destinations] = getNeighbours (nodeID);
+            graph.removeFromChain (toRemove, sources, destinations, true);
             return;
         }
     }
@@ -774,22 +919,245 @@ bool GraphEditorPanel::isEndColumn (const Column& column) const
     return ! column.nodes.empty() && getChainEnd (column.nodes.front()) != nullptr;
 }
 
-bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& destinations) const
+std::vector<GraphEditorPanel::Link> GraphEditorPanel::findLinks() const
 {
-    const auto from = sources.getOutputs();
-    const auto& to = destinations.getInputs();
+    // Each block in the chains, by the nodes its audio goes in at (the block) and leaves from (its
+    // level stage, or the block itself)
+    std::map<NodeID, NodeID> blockOf;
+
+    for (auto& chain : chains)
+    {
+        for (auto& column : chain.columns)
+        {
+            for (size_t row = 0; row < column.nodes.size(); ++row)
+            {
+                blockOf[column.nodes[row]] = column.nodes[row];
+
+                if (row < column.levels.size() && column.levels[row] != NodeID())
+                    blockOf[column.levels[row]] = column.nodes[row];
+            }
+        }
+    }
+
+    // A link for each pair of blocks with audio between them, however many channels it has. A plugin
+    // into its own level stage isn't one, and nor is the audio device into the inputs or from the outputs.
+    std::vector<Link> result;
 
     for (auto& connection : graph.graph.getConnections())
     {
         if (connection.source.isMIDI())
             continue;
 
-        if (std::find (from.begin(), from.end(), connection.source.nodeID) != from.end()
-             && std::find (to.begin(), to.end(), connection.destination.nodeID) != to.end())
+        const auto from = blockOf.find (connection.source.nodeID);
+        const auto to = blockOf.find (connection.destination.nodeID);
+
+        if (from == blockOf.end() || to == blockOf.end() || from->second == to->second
+             || connection.destination.nodeID != to->second)
+            continue;
+
+        const auto isSame = [&] (const Link& link) { return link.from == from->second && link.to == to->second; };
+
+        if (std::none_of (result.begin(), result.end(), isSame))
+            result.push_back ({ from->second, to->second, connection.source.nodeID });
+    }
+
+    return result;
+}
+
+GraphEditorPanel::NodeID GraphEditorPanel::getOutputOf (NodeID block) const
+{
+    if (const auto place = findBlock (block))
+    {
+        const auto& column = chains[place->chain].columns[place->column];
+
+        if (place->row < column.levels.size() && column.levels[place->row] != NodeID())
+            return column.levels[place->row];
+    }
+
+    return block;
+}
+
+std::pair<std::vector<GraphEditorPanel::NodeID>, std::vector<GraphEditorPanel::NodeID>>
+    GraphEditorPanel::getNeighbours (NodeID block) const
+{
+    // What feeds the block, and what its audio goes on to, apart from its own level stage
+    const auto output = getOutputOf (block);
+    std::vector<NodeID> sources, destinations;
+
+    for (auto& connection : graph.graph.getConnections())
+    {
+        if (connection.source.isMIDI())
+            continue;
+
+        if (connection.destination.nodeID == block && connection.source.nodeID != output)
+            addOnce (sources, connection.source.nodeID);
+
+        if (connection.source.nodeID == output && connection.destination.nodeID != block)
+            addOnce (destinations, connection.destination.nodeID);
+    }
+
+    return { sources, destinations };
+}
+
+bool GraphEditorPanel::canLink (NodeID from, NodeID to) const
+{
+    // Left to right within a chain, so the inputs only feed and the outputs are only fed, and only once
+    const auto a = findBlock (from);
+    const auto b = findBlock (to);
+
+    if (! a.has_value() || ! b.has_value() || a->chain != b->chain || a->column >= b->column)
+        return false;
+
+    if (std::any_of (links.begin(), links.end(), [&] (const Link& link) { return link.from == from && link.to == to; }))
+        return false;
+
+    // Never round in a loop
+    return ! graph.graph.isAnInputTo (to, getOutputOf (from));
+}
+
+Point<float> GraphEditorPanel::getEnd (NodeID block, bool isOutput) const
+{
+    // Halfway up the tile's right-hand side, where its audio leaves, or its left, where it comes in
+    const auto tile = getTileBounds (block).toFloat().reduced (tileInset);
+    return { isOutput ? tile.getRight() : tile.getX(), tile.getCentreY() };
+}
+
+Path GraphEditorPanel::getLinkPath (Point<float> start, Point<float> end)
+{
+    // Leaving and arriving level, so a link between blocks in the same row is a straight line
+    const auto bend = jmax (24.0f, (end.x - start.x) * 0.5f);
+
+    Path path;
+    path.startNewSubPath (start);
+    path.cubicTo (start.translated (bend, 0.0f), end.translated (-bend, 0.0f), end);
+    return path;
+}
+
+Path GraphEditorPanel::getLinkPath (const Link& link) const
+{
+    const auto start = getEnd (link.from, true);
+    const auto end = getEnd (link.to, false);
+    const auto a = findBlock (link.from);
+    const auto b = findBlock (link.to);
+
+    // To the next column, it goes straight across
+    if (! a.has_value() || ! b.has_value() || b->column <= a->column + 1)
+        return getLinkPath (start, end);
+
+    // Further, it goes under the blocks in between rather than behind them: down in the gap after the
+    // first block, along under the others, and up in the gap before the second
+    const auto& chain = chains[a->chain];
+    auto under = jmax (start.y, end.y);
+
+    for (auto c = a->column + 1; c < b->column; ++c)
+        under = jmax (under, (float) getTileBounds (chain.columns[c].nodes.back()).getBottom() + linkDetourGap);
+
+    const Point<float> down { (float) chain.busX[a->column], under };
+    const Point<float> up { (float) chain.busX[b->column - 1], under };
+    const auto downBend = (start.x + down.x) / 2.0f;
+    const auto upBend = (up.x + end.x) / 2.0f;
+
+    Path path;
+    path.startNewSubPath (start);
+    path.cubicTo ({ downBend, start.y }, { downBend, under }, down);
+    path.lineTo (up);
+    path.cubicTo ({ upBend, under }, { upBend, end.y }, end);
+    return path;
+}
+
+std::optional<GraphEditorPanel::Link> GraphEditorPanel::findLinkAt (Point<float> position) const
+{
+    std::optional<Link> nearest;
+    auto nearestDistance = linkTouchDistance;
+
+    for (auto& link : links)
+    {
+        Point<float> pointOnLink;
+        getLinkPath (link).getNearestPoint (position, pointOnLink);
+
+        if (const auto distance = pointOnLink.getDistanceFrom (position); distance < nearestDistance)
+        {
+            nearestDistance = distance;
+            nearest = link;
+        }
+    }
+
+    return nearest;
+}
+
+bool GraphEditorPanel::beginLink (PluginComponent& tile, Point<int> positionOnTile)
+{
+    const auto place = findBlock (tile.pluginID);
+
+    if (! place.has_value())
+        return false;
+
+    const auto numColumns = chains[place->chain].columns.size();
+    const auto touch = getLocalPoint (&tile, positionOnTile).toFloat();
+    const auto reach = jmax (minLinkReach, (float) tile.getWidth() * 0.22f);
+
+    for (const bool isOutput : { true, false })
+    {
+        const bool hasEnd = isOutput ? place->column + 1 < numColumns : place->column > 0;
+
+        if (hasEnd && touch.getDistanceFrom (getEnd (tile.pluginID, isOutput)) <= reach)
+        {
+            linkDrag = LinkDrag { tile.pluginID, isOutput, touch.toInt(), {} };
+            repaint();
             return true;
+        }
     }
 
     return false;
+}
+
+void GraphEditorPanel::dragLink (Point<int> finger)
+{
+    if (! linkDrag.has_value())
+        return;
+
+    linkDrag->finger = finger;
+    linkDrag->target = {};
+
+    // The block under the finger, or else the nearest one close to it
+    auto nearestDistance = linkDropDistance;
+
+    for (auto& chain : chains)
+    {
+        for (auto& column : chain.columns)
+        {
+            for (auto id : column.nodes)
+            {
+                if (! (linkDrag->fromOutput ? canLink (linkDrag->block, id) : canLink (id, linkDrag->block)))
+                    continue;
+
+                const auto tile = getTileBounds (id).toFloat();
+                const auto distance = tile.getConstrainedPoint (finger.toFloat()).getDistanceFrom (finger.toFloat());
+
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    linkDrag->target = id;
+                }
+            }
+        }
+    }
+
+    repaint();
+}
+
+void GraphEditorPanel::endLink()
+{
+    if (linkDrag.has_value() && linkDrag->target != NodeID())
+    {
+        const auto from = linkDrag->fromOutput ? linkDrag->block : linkDrag->target;
+        const auto to = linkDrag->fromOutput ? linkDrag->target : linkDrag->block;
+
+        graph.connectBlocks (getOutputOf (from), to);
+    }
+
+    linkDrag.reset();
+    repaint();
 }
 
 bool GraphEditorPanel::canAddParallel (const Chain& chain, size_t column) const
@@ -801,6 +1169,7 @@ bool GraphEditorPanel::canAddParallel (const Chain& chain, size_t column) const
 void GraphEditorPanel::layoutChains()
 {
     chains = findChains();
+    links = findLinks();
 
     // Hide the nodes that aren't part of a chain (the audio device's, and the MIDI ones)
     std::set<uint32> blocksInChains;
@@ -830,7 +1199,7 @@ void GraphEditorPanel::layoutChains()
     {
         while ((size_t) buttons.size() < size)
         {
-            auto* button = buttons.add (new InsertButton());
+            auto* button = buttons.add (new InsertButton (*this));
             const auto index = (size_t) buttons.size() - 1;
             button->onClick = [onClick, index] { onClick (index); };
             addChildComponent (button);
@@ -1199,8 +1568,7 @@ void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
     const auto& column = columns[place->column];
     const auto level = column.levels[place->row];
     const bool isAlone = column.nodes.size() == 1;
-    const auto oldSources = columns[place->column - 1].getOutputs();
-    const auto oldDestinations = columns[place->column + 1].getInputs();
+    const auto [oldSources, oldDestinations] = getNeighbours (nodeID);
 
     auto point = target.inSeries ? getSeriesInsertPoint (chains[target.chain], target.index)
                                  : getParallelInsertPoint (chains[target.chain], target.index);
@@ -1242,7 +1610,8 @@ void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
     if (target.inSeries)
         setFullLevel (level);
 
-    graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, isAlone,
+    // What fed it then feeds what it fed, where that isn't reached some other way
+    graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, true,
                        point.sources, point.destinations, point.inSeries);
 }
 
@@ -1419,11 +1788,23 @@ void GraphEditorPanel::endDraggingConnector (const MouseEvent& e)
 
 void GraphEditorPanel::timerCallback()
 {
-    // this should only be called on touch devices
-    jassert (true || isOnTouchDevice());
-
     stopTimer();
-    //showPopupMenu (originalTouchPos);
+
+    // A link that's being held lights up, and once it's been held long enough, it's removed
+    if (pendingLink.has_value())
+    {
+        heldLink = pendingLink;
+        pendingLink.reset();
+        startTimer (linkHoldMilliseconds - linkLightUpMilliseconds);
+        repaint();
+    }
+    else if (heldLink.has_value())
+    {
+        graph.disconnectBlocks (heldLink->source, heldLink->to);
+        heldLink.reset();
+        removedHeldLink = true;
+        repaint();
+    }
 }
 
 void GraphEditorPanel::activeComponentChanged(PluginComponent* newActiveComponent) {

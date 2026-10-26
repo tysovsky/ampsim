@@ -90,21 +90,31 @@ public:
                        std::function<void (AudioProcessorGraph::Node&)> setUp = nullptr);
 
     /** Removes nodes from the signal chain (a plugin and its level stage). If joinNeighbours is
-        true, every source is then connected to every destination so the signal still flows past the gap.
+        true, every source is then connected to every destination it no longer reaches some other
+        way, so the signal still flows past the gap.
     */
     void removeFromChain (const std::vector<NodeID>& nodes, const std::vector<NodeID>& sources,
                           const std::vector<NodeID>& destinations, bool joinNeighbours);
 
     /** Moves a plugin and its level stage (if it has one) to another place in a chain, as they are.
         They're disconnected from where they were, and if joinOldNeighbours is true, every node in
-        oldSources is then connected to every node in oldDestinations so the signal still flows past
-        the gap. Then they're given the new position and chain, and connected as insertPlugin()
-        connects a new plugin.
+        oldSources is then connected to every node in oldDestinations it no longer reaches some
+        other way, so the signal still flows past the gap. Then they're given the new position and
+        chain, and connected as insertPlugin() connects a new plugin.
     */
     void moveInChain (NodeID plugin, NodeID level, int chain, Point<double> position,
                       const std::vector<NodeID>& oldSources, const std::vector<NodeID>& oldDestinations,
                       bool joinOldNeighbours, const std::vector<NodeID>& sources,
                       const std::vector<NodeID>& destinations, bool inSeries);
+
+    /** Sends one block's audio to another: from source, where it leaves the first block (its level
+        stage, if it has one), to the second. Returns false, and leaves them unconnected, if the
+        audio would go round in a loop.
+    */
+    bool connectBlocks (NodeID source, NodeID destination);
+
+    /** Stops one block's audio going to another, as connected by connectBlocks(). */
+    void disconnectBlocks (NodeID source, NodeID destination);
 
     /** Adds one end of a chain: a ChainInputProcessor, or a ChainOutputProcessor if isInput is
         false, set to a channel choice, in a chain (its "chain" property), fed by every node in
@@ -200,6 +210,7 @@ private:
                             std::function<void (NodeID)> onAdded);
     void connectAudio (NodeID source, NodeID destination);
     void disconnectAudio (NodeID source, NodeID destination);
+    void joinAcrossGap (const std::vector<NodeID>& sources, const std::vector<NodeID>& destinations);
     void changeListenerCallback (ChangeBroadcaster*) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginGraph)

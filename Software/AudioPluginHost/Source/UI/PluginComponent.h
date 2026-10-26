@@ -67,6 +67,7 @@ private:
     // Dragging a plugin's tile further than this picks it up, to drop on a + somewhere else
     static constexpr int dragDistance = 12;
     bool canBeDragged = false, isBeingDragged = false, willBeDeleted = false;
+    bool isDraggingLink = false;   // out of one of its ends, to another block
     Point<int> grabOffset;     // where on the tile it was picked up
 
     GraphEditorPanel& panel;

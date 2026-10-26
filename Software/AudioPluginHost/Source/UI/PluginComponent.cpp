@@ -48,9 +48,18 @@ void PluginComponent::mouseDown(const MouseEvent& e)
 
     originalPos = localPointToGlobal(Point<int>());
 
-    toFront(true);
-
     PopupMenu::dismissAllActiveMenus();
+
+    // The dot at either end of the tile drags out a link to another block, rather than picking the
+    // tile up or holding it, and mustn't scroll the chains either
+    if (panel.beginLink(*this, e.getPosition()))
+    {
+        isDraggingLink = true;
+        setViewportIgnoreDragFlag(true);
+        return;
+    }
+
+    toFront(true);
 
     // A plugin's tile is picked up by dragging it, to move it somewhere else in the chains, so
     // dragging it mustn't also scroll them. A chain's inputs and outputs stay where they are.
@@ -66,6 +75,12 @@ void PluginComponent::mouseDrag(const MouseEvent& e)
     if (isAdjustingLevel)
     {
         setLaneLevelFromPosition(e.x);
+        return;
+    }
+
+    if (isDraggingLink)
+    {
+        panel.dragLink(panel.getLocalPoint(nullptr, e.getScreenPosition()));
         return;
     }
 
@@ -95,6 +110,13 @@ void PluginComponent::mouseUp(const MouseEvent& e)
 
     stopTimer();
     setViewportIgnoreDragFlag(false);
+
+    if (isDraggingLink)
+    {
+        isDraggingLink = false;
+        panel.endLink();
+        return;
+    }
 
     if (isBeingDragged)
     {
