@@ -238,10 +238,49 @@ void GraphEditorPanel::paint (Graphics& g)
                 drawPath ({ right, lowestTile, right, y }, false);
         }
 
+        // Without free links, the rail in each gap: every tile in the column before it feeds in, and
+        // every tile in the column after it is fed from it, so parallel blocks split and merge here
+        if (linksEnabled)
+            continue;
+
+        for (size_t gap = 0; gap < chain.busX.size() && gap + 1 < columns.size(); ++gap)
+        {
+            const auto x = (float) chain.busX[gap];
+            const bool connected = isAudioConnected (columns[gap], columns[gap + 1]);
+
+            // Tiles are drawn for the blocks; their level stages sit invisibly just after them
+            auto top = std::numeric_limits<float>::max();
+            auto bottom = std::numeric_limits<float>::lowest();
+
+            for (auto id : columns[gap].nodes)
+            {
+                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
+                {
+                    const auto y = centreY (id);
+                    drawPath ({ (float) tile.getRight(), y, x, y }, connected);
+                    top = jmin (top, y);
+                    bottom = jmax (bottom, y);
+                }
+            }
+
+            for (auto id : columns[gap + 1].nodes)
+            {
+                if (const auto tile = getTileBounds (id); ! tile.isEmpty())
+                {
+                    const auto y = centreY (id);
+                    drawPath ({ x, y, (float) tile.getX(), y }, connected);
+                    top = jmin (top, y);
+                    bottom = jmax (bottom, y);
+                }
+            }
+
+            if (bottom > top)
+                drawPath ({ x, top, x, bottom }, connected);
+        }
     }
 
-    // Each link, from the block the audio leaves to the block it goes into, with the one being held
-    // (to remove it) lit up
+    // With free links, each link, from the block the audio leaves to the block it goes into, with the
+    // one being held (to remove it) lit up
     for (auto& link : links)
     {
         const bool isHeld = heldLink.has_value() && heldLink->from == link.from && heldLink->to == link.to;
@@ -266,6 +305,9 @@ void GraphEditorPanel::paint (Graphics& g)
 
 void GraphEditorPanel::paintOverChildren (Graphics& g)
 {
+    if (! linksEnabled)
+        return;
+
     const auto colour = findColour (AppColourIds::signalPath);
     const auto background = findColour (ResizableWindow::backgroundColourId);
 
@@ -595,9 +637,18 @@ void GraphEditorPanel::removeFromChain (NodeID nodeID)
                         level->getLevel().setValueNotifyingHost (1.0f);
 
             // What fed it then feeds what it fed, where that isn't reached some other way, so the signal
-            // still flows
-            const auto [sources, destinations] = getNeighbours (nodeID);
-            graph.removeFromChain (toRemove, sources, destinations, true);
+            // still flows. Without free links, if it was the last plugin in its column, the columns
+            // either side are joined.
+            if (linksEnabled)
+            {
+                const auto [sources, destinations] = getNeighbours (nodeID);
+                graph.removeFromChain (toRemove, sources, destinations, true);
+            }
+            else
+            {
+                graph.removeFromChain (toRemove, columns[c - 1].getOutputs(), columns[c + 1].getInputs(), column.nodes.size() == 1);
+            }
+
             return;
         }
     }
@@ -919,6 +970,35 @@ bool GraphEditorPanel::isEndColumn (const Column& column) const
     return ! column.nodes.empty() && getChainEnd (column.nodes.front()) != nullptr;
 }
 
+bool GraphEditorPanel::isAudioConnected (const Column& sources, const Column& destinations) const
+{
+    const auto from = sources.getOutputs();
+    const auto& to = destinations.getInputs();
+
+    for (auto& connection : graph.graph.getConnections())
+    {
+        if (connection.source.isMIDI())
+            continue;
+
+        if (std::find (from.begin(), from.end(), connection.source.nodeID) != from.end()
+             && std::find (to.begin(), to.end(), connection.destination.nodeID) != to.end())
+            return true;
+    }
+
+    return false;
+}
+
+void GraphEditorPanel::setLinksEnabled (bool shouldBeEnabled)
+{
+    if (linksEnabled == shouldBeEnabled)
+        return;
+
+    linksEnabled = shouldBeEnabled;
+    linkDrag.reset();
+    cancelHold();
+    layoutChains();
+}
+
 std::vector<GraphEditorPanel::Link> GraphEditorPanel::findLinks() const
 {
     // Each block in the chains, by the nodes its audio goes in at (the block) and leaves from (its
@@ -1089,7 +1169,7 @@ bool GraphEditorPanel::beginLink (PluginComponent& tile, Point<int> positionOnTi
 {
     const auto place = findBlock (tile.pluginID);
 
-    if (! place.has_value())
+    if (! linksEnabled || ! place.has_value())
         return false;
 
     const auto numColumns = chains[place->chain].columns.size();
@@ -1169,7 +1249,7 @@ bool GraphEditorPanel::canAddParallel (const Chain& chain, size_t column) const
 void GraphEditorPanel::layoutChains()
 {
     chains = findChains();
-    links = findLinks();
+    links = linksEnabled ? findLinks() : std::vector<Link>();
 
     // Hide the nodes that aren't part of a chain (the audio device's, and the MIDI ones)
     std::set<uint32> blocksInChains;
@@ -1568,7 +1648,11 @@ void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
     const auto& column = columns[place->column];
     const auto level = column.levels[place->row];
     const bool isAlone = column.nodes.size() == 1;
-    const auto [oldSources, oldDestinations] = getNeighbours (nodeID);
+
+    // What fed it and what it fed, or without free links, the columns either side
+    const auto [oldSources, oldDestinations] = linksEnabled ? getNeighbours (nodeID)
+                                                            : std::make_pair (columns[place->column - 1].getOutputs(),
+                                                                              columns[place->column + 1].getInputs());
 
     auto point = target.inSeries ? getSeriesInsertPoint (chains[target.chain], target.index)
                                  : getParallelInsertPoint (chains[target.chain], target.index);
@@ -1610,8 +1694,9 @@ void GraphEditorPanel::moveBlock (NodeID nodeID, const DropTarget& target)
     if (target.inSeries)
         setFullLevel (level);
 
-    // What fed it then feeds what it fed, where that isn't reached some other way
-    graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, true,
+    // What fed it then feeds what it fed, where that isn't reached some other way; without free links,
+    // only if it was on its own in its column
+    graph.moveInChain (nodeID, level, point.chain, point.position, oldSources, oldDestinations, linksEnabled || isAlone,
                        point.sources, point.destinations, point.inSeries);
 }
 

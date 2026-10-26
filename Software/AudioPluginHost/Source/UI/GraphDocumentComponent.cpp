@@ -326,6 +326,7 @@ void GraphDocumentComponent::init()
     updateMidiOutput();
 
     graphPanel.reset(new GraphEditorPanel(*graph, pluginList));
+    graphPanel->setLinksEnabled(AudioSettingsPopup::areFreeLinksOn());
     graphPanel->addListener(this);
 
     // Scrolled by dragging, as there's no mouse wheel on the touchscreen and no room for scrollbars
@@ -378,6 +379,11 @@ void GraphDocumentComponent::init()
 
     // Added last so it covers everything when shown
     settingsPopup.reset(new AudioSettingsPopup(deviceManager));
+    settingsPopup->onFreeLinksChange = [this](bool isOn)
+    {
+        if (graphPanel != nullptr)
+            graphPanel->setLinksEnabled(isOn);
+    };
     addChildComponent(settingsPopup.get());
 
     recordingsPopup.reset(new RecordingsPopup(recorder));

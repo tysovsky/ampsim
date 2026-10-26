@@ -1,4 +1,5 @@
 #include "AudioSettingsPopup.h"
+#include "MainHostWindow.h"
 
 namespace
 {
@@ -9,6 +10,10 @@ namespace
     constexpr int rowGap = 8;
     constexpr int columnGap = 32;
     constexpr int labelWidth = 160;
+    constexpr int freeLinksWidth = 300;
+
+    // The user setting that turns free links on
+    const char* const freeLinksSetting = "freeLinks";
 
     // "Output 1" + "Output 2" -> "Output 1 + 2"
     String getChannelPairName(const String& first, const String& second)
@@ -89,6 +94,45 @@ private:
 };
 
 //==============================================================================
+// A tick box with its text beside it, big enough for a finger
+struct AudioSettingsPopup::CheckBox final : public Button
+{
+    explicit CheckBox(const String& text) : Button(text)
+    {
+        setClickingTogglesState(true);
+        setWantsKeyboardFocus(false);
+    }
+
+    void paintButton(Graphics& g, bool, bool isButtonDown) override
+    {
+        auto area = getLocalBounds().toFloat();
+        const auto box = area.removeFromLeft(area.getHeight()).withSizeKeepingCentre(26.0f, 26.0f);
+        const auto accent = findColour(AppColourIds::signalPath);
+        const bool isTicked = getToggleState();
+
+        g.setColour(isTicked ? accent : findColour(ComboBox::backgroundColourId));
+        g.fillRoundedRectangle(box, 5.0f);
+        g.setColour(isTicked || isButtonDown ? accent : findColour(ComboBox::outlineColourId));
+        g.drawRoundedRectangle(box, 5.0f, 1.5f);
+
+        if (isTicked)
+        {
+            Path tick;
+            tick.startNewSubPath(box.getRelativePoint(0.24f, 0.52f));
+            tick.lineTo(box.getRelativePoint(0.43f, 0.72f));
+            tick.lineTo(box.getRelativePoint(0.78f, 0.30f));
+
+            g.setColour(findColour(ResizableWindow::backgroundColourId));
+            g.strokePath(tick, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
+        }
+
+        g.setColour(findColour(Label::textColourId));
+        g.setFont(Font(TouchLookAndFeel::fontSize));
+        g.drawText(getButtonText(), area.withTrimmedLeft(6.0f), Justification::centredLeft, true);
+    }
+};
+
+//==============================================================================
 AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
     : deviceManager(dm),
     inputLevelMeter(std::make_unique<InputLevelMeter>(dm))
@@ -101,6 +145,17 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
 
     doneButton.onClick = [this] { hide(); };
     addAndMakeVisible(doneButton);
+
+    freeLinksBox = std::make_unique<CheckBox>("Free links (experimental)");
+    freeLinksBox->onClick = [this]
+    {
+        const bool isOn = freeLinksBox->getToggleState();
+        getAppProperties().getUserSettings()->setValue(freeLinksSetting, isOn);
+
+        if (onFreeLinksChange != nullptr)
+            onFreeLinksChange(isOn);
+    };
+    addAndMakeVisible(freeLinksBox.get());
 
     const std::pair<Label*, const char*> labels[] = {
         { &deviceTypeLabel, "Device type" },
@@ -197,8 +252,14 @@ AudioSettingsPopup::~AudioSettingsPopup()
 }
 
 //==============================================================================
+bool AudioSettingsPopup::areFreeLinksOn()
+{
+    return getAppProperties().getUserSettings()->getBoolValue(freeLinksSetting, false);
+}
+
 void AudioSettingsPopup::show()
 {
+    freeLinksBox->setToggleState(areFreeLinksOn(), dontSendNotification);
     updateControls();
     setVisible(true);
     toFront(true);
@@ -239,6 +300,8 @@ void AudioSettingsPopup::resized()
 
     auto header = panel.removeFromTop(headerHeight).reduced(padding, 6);
     doneButton.setBounds(header.removeFromRight(140));
+    header.removeFromRight(columnGap);
+    freeLinksBox->setBounds(header.removeFromRight(freeLinksWidth));
     titleLabel.setBounds(header);
 
     auto content = panel.withTrimmedTop(rowGap).reduced(padding, 0);

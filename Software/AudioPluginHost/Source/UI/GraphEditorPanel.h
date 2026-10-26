@@ -50,10 +50,12 @@ class ChainEndProcessor;
     A plugin's tile can be dragged onto a + to move the plugin there, as it is, or
     off into empty space to delete it.
 
-    The audio goes along links, drawn from one tile's right-hand end to another's
-    left: any block can feed any block after it in its chain, so the columns are
-    where blocks sit rather than how they're wired. Dragging from the dot at either
-    end of a tile to another block links them, and holding a link removes it.
+    Each column feeds the whole of the next, through a rail in the gap between them.
+    With free links turned on (see setLinksEnabled()), the audio goes along links
+    instead, drawn from one tile's right-hand end to another's left: any block can
+    feed any block after it in its chain, so the columns are where blocks sit rather
+    than how they're wired. Dragging from the dot at either end of a tile to another
+    block links them, and holding a link removes it.
 */
 class GraphEditorPanel final : public Component,
                                public ChangeListener,
@@ -103,6 +105,12 @@ public:
         space, or otherwise goes back.
     */
     void dropBlock (PluginComponent&);
+
+    /** Turns free links on or off (see the class description). Off, blocks can't be linked by
+        dragging or unlinked by holding, and adding, moving and removing blocks join whole columns,
+        as before there were links. Turning them on or off doesn't change how anything's connected.
+    */
+    void setLinksEnabled (bool);
 
     /** Whether a touch on a block's tile is on the dot at either end of it, where dragging links
         it to another block. If it is, the link starts being dragged out from there.
@@ -251,6 +259,7 @@ private:
     ChainEndProcessor* getChainEnd (NodeID) const;
     std::vector<Chain> findChains() const;
     bool isEndColumn (const Column&) const;
+    bool isAudioConnected (const Column& sources, const Column& destinations) const;
     std::vector<Link> findLinks() const;
     NodeID getOutputOf (NodeID block) const;
     std::pair<std::vector<NodeID>, std::vector<NodeID>> getNeighbours (NodeID block) const;
@@ -286,7 +295,8 @@ private:
     TextEntryPopup textEntry;
     std::unique_ptr<XmlElement> chainEndControls;   // the inputs' and outputs' channel choice
     std::vector<Chain> chains;
-    std::vector<Link> links;
+    bool linksEnabled = false;
+    std::vector<Link> links;                // with free links on; none while they're off
     std::optional<LinkDrag> linkDrag;
     std::optional<Link> pendingLink;        // touched, and lit up as heldLink if it's still held a moment later
     std::optional<Link> heldLink;           // being held, to remove it
