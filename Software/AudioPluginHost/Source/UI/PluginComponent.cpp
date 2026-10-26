@@ -351,42 +351,45 @@ void PluginComponent::showPopupMenu()
         return;
     }
 
-    nodeActionWindow->showYesNoCancelBox(
-        MessageBoxIconType::NoIcon,
-        nodeName,
-        "",
-        bypassBtnText,
-        "Disconnect All",
-        "Delete",
-        nullptr,
-        ModalCallbackFunction::create([this, node](int result) {
-            switch (result)
-            {
-            case 1:
-            {
-                if (node)
-                    graph.setNodeBypassed(pluginID, !node->isBypassed());
+    // A box of its own, with a Cancel button: a three-button box counts closing it, or Escape, as
+    // its third button, which was Delete. Here they're Cancel, and do nothing.
+    auto* box = new AlertWindow(nodeName, {}, MessageBoxIconType::NoIcon);
+    box->addButton(bypassBtnText, 1);
+    box->addButton("Disconnect All", 2);
+    box->addButton("Delete", 3);
+    box->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
-                repaint();
-                break;
-            }
-            case 2:
-            {
-                //graph.graph.disconnectNode(pluginID);
-                showWindow(PluginWindow::Type::generic);
-                break;
-            }
-            case 0:
-            {
-                panel.removeFromChain(pluginID);
-                break;
-            }
+    box->enterModalState(true, ModalCallbackFunction::create([safeThis = SafePointer<PluginComponent>(this), node](int result) {
+        // The tile may have gone while the box was open
+        if (safeThis == nullptr)
+            return;
 
-            default:
-                break;
-            }
-            })
-    );
+        switch (result)
+        {
+        case 1:
+        {
+            if (node)
+                safeThis->graph.setNodeBypassed(safeThis->pluginID, !node->isBypassed());
+
+            safeThis->repaint();
+            break;
+        }
+        case 2:
+        {
+            //graph.graph.disconnectNode(pluginID);
+            safeThis->showWindow(PluginWindow::Type::generic);
+            break;
+        }
+        case 3:
+        {
+            safeThis->panel.removeFromChain(safeThis->pluginID);
+            break;
+        }
+
+        default:
+            break;
+        }
+        }), true);
 }
 
 void PluginComponent::testStateSaveLoad()
