@@ -68,7 +68,7 @@ void SoundVisualiser::visibilityChanged()
 
 void SoundVisualiser::timerCallback()
 {
-    if (! isShowing())
+    if (! isShowing() || isCovered())
         return;
 
     const auto now = Time::getMillisecondCounterHiRes();
@@ -85,6 +85,15 @@ void SoundVisualiser::timerCallback()
         p.angle += seconds * p.speed * swirl / (0.3f + p.radius);
 
     repaint();
+}
+
+bool SoundVisualiser::isCovered() const
+{
+    // Whatever's in front at its middle, such as a popup over the window
+    auto* top = getTopLevelComponent();
+    auto* inFront = top->getComponentAt (top->getLocalPoint (this, getLocalBounds().getCentre()));
+
+    return inFront != nullptr && inFront != this && ! isParentOf (inFront) && ! inFront->isParentOf (this);
 }
 
 void SoundVisualiser::listen (float seconds)

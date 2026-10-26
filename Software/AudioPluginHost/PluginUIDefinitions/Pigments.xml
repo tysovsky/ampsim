@@ -5,14 +5,17 @@
   functions and more), three FX buses and a sequencer. It plays the MIDI from the keyboards, and
   can take audio in too, through its utility engine.
 
-  The block's controls are its presets and the four macros, which presets set up to change their
+  The block's controls are its sound and the four macros, which presets set up to change their
   sound the most (Pigments names them for each preset, but doesn't tell the host the names). The
-  pedalboard's knobs 1 to 4 are the macros, and its switch steps to the next preset. Edit opens
-  pages for the rest; the first draws the sound above the presets and macros. A MIDI controller
+  sound is one of those saved in the host, picked from a list; the arrows either side of it step
+  through Pigments' own presets, to find ones to save. The pedalboard's knobs 1 to 4 are the
+  macros, and its switch steps to the next saved sound (or preset, until any are saved). Edit opens
+  pages for the rest; the first draws the sound above them. A MIDI controller
   plays it.
 
   The plugin doesn't tell the host which kind of engine, filter or effect a preset uses, or the
-  presets' names, so those are changed in its own window. Each engine page has a Type to pick
+  presets' names, so the host keeps names for the sounds saved in it, and the rest are changed in
+  its own window. Each engine page has a Type to pick
   which engine's controls to show; pick the one the preset uses. The FX page has each slot's
   mix and switch, which every kind of effect has.
 
@@ -20,8 +23,7 @@
 -->
 <PluginControl name="Pigments" icon="synth">
   <Controls>
-    <Trigger param="Previous Preset" label="Preset" text="&#8249; Prev"/>
-    <Trigger param="Next Preset" text="Next &#8250;" switch="1"/>
+    <Sounds previous="Previous Preset" next="Next Preset" switch="1"/>
     <Knob param="Macro 1" label="Macro 1" knob="1"/>
     <Knob param="Macro 2" label="Macro 2" knob="2"/>
     <Knob param="Macro 3" label="Macro 3" knob="3"/>
@@ -35,8 +37,7 @@
     <Page name="Play">
       <Visualiser/>
       <Row label="Sound">
-        <Trigger param="Previous Preset" label="Preset" text="&#8249; Prev"/>
-        <Trigger param="Next Preset" text="Next &#8250;" switch="1"/>
+        <Sounds previous="Previous Preset" next="Next Preset" switch="1"/>
         <Knob param="Macro 1" label="Macro 1" knob="1"/>
         <Knob param="Macro 2" label="Macro 2" knob="2"/>
         <Knob param="Macro 3" label="Macro 3" knob="3"/>

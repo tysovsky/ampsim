@@ -17,6 +17,11 @@
                                                                  names for the steps
       <Trigger param="Next Preset" text="Next"/>                 a button that pulses a parameter, e.g. one
                                                                  that steps through the plugin's presets
+      <Sounds previous="Previous Preset" next="Next Preset"/>    the sound the block is set to, from the ones
+                                                                 saved for its plugin, like a dropdown list
+                                                                 (see SoundsPopup); a switch steps through
+                                                                 them, and arrows pulse previous and next, if
+                                                                 given, to step through the plugin's presets
       <View name="engine1" label="Type" options="A|B"/>          picks which of the <Show view="..."> controls
                                                                  are shown, for something the plugin doesn't
                                                                  say, such as which kind of engine a preset
@@ -53,7 +58,8 @@ public:
         control is on it. */
     bool handleSwitch (int number, bool toggles, bool isOn);
 
-    /** Called after a <View> has been changed, which changes a property of the block, not the plugin. */
+    /** Called after a <View> has been changed, or a <Sounds> has set the block to another sound,
+        which changes a property of the block, not the plugin. */
     std::function<void()> onViewChange;
 
     void resized() override;
@@ -65,6 +71,7 @@ private:
     class SwitchControl;
     class ChoiceControl;
     class TriggerControl;
+    class SoundsControl;
 
     void addControls (const XmlElement&, const std::vector<Condition>&);
     void updateVisibility();

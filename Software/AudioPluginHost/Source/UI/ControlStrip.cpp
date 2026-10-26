@@ -1,7 +1,9 @@
 #include "ControlStrip.h"
 #include "ThemeManager.h"
 #include "TouchLookAndFeel.h"
+#include "SoundsPopup.h"
 #include "../Plugins/PluginModules.h"
+#include "../Plugins/SoundLibrary.h"
 
 namespace
 {
@@ -53,6 +55,49 @@ namespace
     {
         return findParameterByName (processor, e.getStringAttribute ("param"), e.getIntAttribute ("occurrence", 1));
     }
+
+    // Pulses a parameter up and back down, for plugins that act on a parameter changing, such as
+    // stepping to the next preset
+    class Pulse final : private Timer
+    {
+    public:
+        explicit Pulse (AudioProcessorParameter& p) : parameter (p) {}
+
+        ~Pulse() override
+        {
+            // Not left at the top, if it goes mid-pulse
+            if (isTimerRunning())
+            {
+                parameter.setValueNotifyingHost (0.0f);
+                parameter.endChangeGesture();
+            }
+        }
+
+        void start()
+        {
+            if (isTimerRunning())
+                return;
+
+            parameter.beginChangeGesture();
+            parameter.setValueNotifyingHost (1.0f);
+            startTimer (triggerMilliseconds);
+        }
+
+        std::function<void()> onEnd;
+
+    private:
+        void timerCallback() override
+        {
+            stopTimer();
+            parameter.setValueNotifyingHost (0.0f);
+            parameter.endChangeGesture();
+
+            if (onEnd != nullptr)
+                onEnd();
+        }
+
+        AudioProcessorParameter& parameter;
+    };
 }
 
 //==============================================================================
@@ -408,27 +453,18 @@ private:
 //==============================================================================
 // A button that pulses a parameter up and back down, for plugins that act on a parameter
 // changing, such as stepping to the next preset
-class ControlStrip::TriggerControl final : public Control,
-                                           private Timer
+class ControlStrip::TriggerControl final : public Control
 {
 public:
     TriggerControl (AudioProcessorParameter& p, const XmlElement& e)
-        : Control (e, String()), parameter (p)
+        : Control (e, String()), pulse (p)
     {
         button.setButtonText (e.getStringAttribute ("text", p.getName (32)));
         button.setWantsKeyboardFocus (false);
-        button.onClick = [this] { trigger(); };
+        button.onClick = [this] { pulse.start(); };
         addAndMakeVisible (button);
-    }
 
-    ~TriggerControl() override
-    {
-        // Not left at the top, if it goes mid-pulse
-        if (isTimerRunning())
-        {
-            parameter.setValueNotifyingHost (0.0f);
-            parameter.endChangeGesture();
-        }
+        pulse.onEnd = [this] { changed(); };
     }
 
     int getPreferredWidth() const override    { return 96; }
@@ -437,7 +473,7 @@ public:
     void setFromSwitch (bool shouldBeOn) override
     {
         if (shouldBeOn)
-            trigger();
+            pulse.start();
     }
 
     void paint (Graphics& g) override    { paintLabel (g); }
@@ -449,26 +485,190 @@ public:
     }
 
 private:
-    void trigger()
-    {
-        if (isTimerRunning())
-            return;
+    Pulse pulse;
+    TextButton button;
+};
 
-        parameter.beginChangeGesture();
-        parameter.setValueNotifyingHost (1.0f);
-        startTimer (triggerMilliseconds);
+//==============================================================================
+// The sound the block is set to, from the ones saved for its plugin (see SoundLibrary), shown like a
+// dropdown list: tapping it opens them all (see SoundsPopup), and a switch steps through them.
+// Where the plugin has parameters that step through its own presets, arrows either side do that,
+// for finding sounds to save.
+class ControlStrip::SoundsControl final : public Control
+{
+public:
+    SoundsControl (AudioProcessorGraph::Node::Ptr n, const XmlElement& e)
+        : Control (e, "Sound"), node (std::move (n))
+    {
+        auto& processor = *node->getProcessor();
+
+        if (auto* parameter = findParameterByName (processor, e.getStringAttribute ("previous")))
+            previous = std::make_unique<Pulse> (*parameter);
+
+        if (auto* parameter = findParameterByName (processor, e.getStringAttribute ("next")))
+            next = std::make_unique<Pulse> (*parameter);
+
+        box.setTextWhenNothingSelected ("Not saved");
+        box.setWantsKeyboardFocus (false);
+        box.onOpen = [this] { openList(); };
+        addAndMakeVisible (box);
+
+        previousButton.onClick = [this] { browse (-1); };
+        nextButton.onClick = [this] { browse (1); };
+
+        for (auto* button : { &previousButton, &nextButton })
+        {
+            button->setWantsKeyboardFocus (false);
+            addChildComponent (button);
+            button->setVisible (canBrowse());
+        }
+
+        refresh();
     }
 
-    void timerCallback() override
+    int getPreferredWidth() const override    { return canBrowse() ? 300 : 210; }
+
+    void refresh() override
     {
-        stopTimer();
-        parameter.setValueNotifyingHost (0.0f);
-        parameter.endChangeGesture();
+        const auto current = SoundLibrary::getCurrentSound (*node);
+
+        if (current != shownSound)
+        {
+            shownSound = current;
+            box.setText (current, dontSendNotification);
+
+            if (popup != nullptr && popup->isVisible())
+                popup->refresh();
+        }
+    }
+
+    // A switch steps on to the next sound when it's switched on
+    void setFromSwitch (bool shouldBeOn) override
+    {
+        if (shouldBeOn)
+            step (1);
+    }
+
+    void paint (Graphics& g) override    { paintLabel (g); }
+
+    void resized() override
+    {
+        auto area = getLocalBounds().withTrimmedTop (labelHeight).withSizeKeepingCentre (getWidth(), buttonHeight);
+        area = area.withSizeKeepingCentre (jmin (area.getWidth(), maxSoundsWidth), buttonHeight);
+
+        if (canBrowse())
+        {
+            previousButton.setBounds (area.removeFromLeft (arrowWidth));
+            nextButton.setBounds (area.removeFromRight (arrowWidth));
+            area.reduce (4, 0);
+        }
+
+        box.setBounds (area);
+    }
+
+private:
+    static constexpr int arrowWidth = 48;
+    static constexpr int maxSoundsWidth = 420;
+
+    // An arrow, drawn rather than typed, as the arrow characters are tiny at a button's size
+    struct StepButton final : public TextButton
+    {
+        explicit StepButton (bool pointsLeft) : left (pointsLeft) {}
+
+        void paintButton (Graphics& g, bool isHighlighted, bool isDown) override
+        {
+            getLookAndFeel().drawButtonBackground (g, *this, findColour (buttonColourId), isHighlighted, isDown);
+
+            const auto area = getLocalBounds().toFloat().withSizeKeepingCentre (8.0f, 16.0f);
+            Path arrow;
+            arrow.startNewSubPath (left ? area.getRight() : area.getX(), area.getY());
+            arrow.lineTo (left ? area.getX() : area.getRight(), area.getCentreY());
+            arrow.lineTo (left ? area.getRight() : area.getX(), area.getBottom());
+
+            g.setColour (findColour (textColourOffId));
+            g.strokePath (arrow, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+        }
+
+        const bool left;
+    };
+
+    // Looks like the other lists, but opens the sounds over the whole window instead of a menu
+    struct SoundBox final : public ComboBox
+    {
+        void showPopup() override
+        {
+            // The box thinks its menu is open until it's told otherwise, and wouldn't open again
+            hidePopup();
+
+            if (onOpen != nullptr)
+                onOpen();
+        }
+
+        std::function<void()> onOpen;
+    };
+
+    bool canBrowse() const noexcept    { return previous != nullptr && next != nullptr; }
+
+    // The next or previous of the saved sounds, round to the first after the last; or the plugin's
+    // own presets, until there are some
+    void step (int direction)
+    {
+        const auto library = SoundLibrary::forBlock (*node);
+        const auto names = library.getNames();
+
+        if (names.isEmpty())
+        {
+            browse (direction);
+            return;
+        }
+
+        const int index = names.indexOf (SoundLibrary::getCurrentSound (*node), true);
+        const int nextIndex = index < 0 ? (direction > 0 ? 0 : names.size() - 1)
+                                        : (index + direction + names.size()) % names.size();
+
+        if (library.load (*node->getProcessor(), names[nextIndex]))
+            SoundLibrary::setCurrentSound (*node, names[nextIndex]);
+
         changed();
     }
 
-    AudioProcessorParameter& parameter;
-    TextButton button;
+    // The plugin's own previous or next preset, which isn't one of the saved sounds
+    void browse (int direction)
+    {
+        if (auto* pulse = (direction < 0 ? previous : next).get())
+        {
+            pulse->start();
+            SoundLibrary::setCurrentSound (*node, {});
+            changed();
+        }
+    }
+
+    void openList()
+    {
+        // Over the whole window, rather than the strip
+        auto* window = findParentComponentOfClass<ResizableWindow>();
+        auto* parent = window != nullptr ? window->getContentComponent() : getTopLevelComponent();
+
+        if (parent == nullptr)
+            return;
+
+        if (popup == nullptr)
+        {
+            popup = std::make_unique<SoundsPopup>();
+            popup->onBrowse = [this] (int direction) { browse (direction); };
+            popup->onSoundChange = [this] { changed(); };
+        }
+
+        const auto module = node->properties["module"].toString();
+        popup->show (*parent, node, (module.isNotEmpty() ? module : node->getProcessor()->getName()) + " sounds", canBrowse());
+    }
+
+    AudioProcessorGraph::Node::Ptr node;
+    std::unique_ptr<Pulse> previous, next;
+    SoundBox box;
+    StepButton previousButton { true }, nextButton { false };
+    String shownSound;
+    std::unique_ptr<SoundsPopup> popup;
 };
 
 //==============================================================================
@@ -534,6 +734,10 @@ void ControlStrip::addControls (const XmlElement& element, const std::vector<Con
         {
             control = ChoiceControl::forView (node, *child);
         }
+        else if (child->hasTagName ("Sounds"))
+        {
+            control = std::make_unique<SoundsControl> (node, *child);
+        }
         else if (auto* parameter = findParameterFor (processor, *child))
         {
             if (child->hasTagName ("Knob"))          control = std::make_unique<KnobControl> (*parameter, *child, false);
@@ -553,11 +757,11 @@ void ControlStrip::addControls (const XmlElement& element, const std::vector<Con
         control->conditions = conditions;
 
         // A choice can bring other controls into view, so check straight away rather than on the next tick
-        control->onChange = [this, isView = child->hasTagName ("View")]
+        control->onChange = [this, changesBlock = child->hasTagName ("View") || child->hasTagName ("Sounds")]
         {
             updateVisibility();
 
-            if (isView && onViewChange != nullptr)
+            if (changesBlock && onViewChange != nullptr)
                 onViewChange();
         };
         addChildComponent (control.get());

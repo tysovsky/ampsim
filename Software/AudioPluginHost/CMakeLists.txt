@@ -65,6 +65,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/Plugins/InternalPlugins.cpp
     Source/Plugins/PluginGraph.cpp
     Source/Plugins/PluginModules.cpp
+    Source/Plugins/SoundLibrary.cpp
     Source/UI/AudioSettingsPopup.cpp
     Source/UI/BlockControlsPanel.cpp
     Source/UI/BlockEditor.cpp
@@ -80,6 +81,7 @@ target_sources(AudioPluginHost PRIVATE
     Source/UI/PluginPicker.cpp
     Source/UI/RecordingsPopup.cpp
     Source/UI/SoundVisualiser.cpp
+    Source/UI/SoundsPopup.cpp
     Source/UI/TextEntryPopup.cpp
     Source/UI/ThemeManager.cpp)
 

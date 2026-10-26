@@ -31,8 +31,6 @@ public:
 private:
     class PlayButton;
     class SeekBar;
-    class DeleteButton;
-    class RenameButton;
     class RowControls;
 
     struct Recording

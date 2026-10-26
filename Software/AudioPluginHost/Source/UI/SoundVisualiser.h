@@ -51,6 +51,7 @@ private:
     static constexpr int fftSize = 1 << fftOrder;
 
     void timerCallback() override;
+    bool isCovered() const;     // e.g. by a popup, so there's no need to draw it
     void listen (float seconds);
     void prepare (float pixelScale);
     void drawFrame();
