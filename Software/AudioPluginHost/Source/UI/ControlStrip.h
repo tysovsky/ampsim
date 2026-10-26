@@ -19,9 +19,10 @@
                                                                  that steps through the plugin's presets
       <Sounds previous="Previous Preset" next="Next Preset"/>    the sound the block is set to, from the ones
                                                                  saved for its plugin, like a dropdown list
-                                                                 (see SoundsPopup); a switch steps through
-                                                                 them, and arrows pulse previous and next, if
-                                                                 given, to step through the plugin's presets
+                                                                 (see SoundsPopup); arrows and a switch step
+                                                                 through the ones in its group, or while there
+                                                                 are none, pulse previous and next, if given,
+                                                                 to step through the plugin's own presets
       <View name="engine1" label="Type" options="A|B"/>          picks which of the <Show view="..."> controls
                                                                  are shown, for something the plugin doesn't
                                                                  say, such as which kind of engine a preset

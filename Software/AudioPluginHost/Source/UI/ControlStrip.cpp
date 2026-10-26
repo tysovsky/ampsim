@@ -491,9 +491,9 @@ private:
 
 //==============================================================================
 // The sound the block is set to, from the ones saved for its plugin (see SoundLibrary), shown like a
-// dropdown list: tapping it opens them all (see SoundsPopup), and a switch steps through them.
-// Where the plugin has parameters that step through its own presets, arrows either side do that,
-// for finding sounds to save.
+// dropdown list: tapping it opens them all (see SoundsPopup). Arrows either side, and a switch, step
+// through the sounds in the same group as it, such as the same type of preset; or, while there
+// are none, through the plugin's own presets, where it has parameters for that.
 class ControlStrip::SoundsControl final : public Control
 {
 public:
@@ -513,20 +513,24 @@ public:
         box.onOpen = [this] { openList(); };
         addAndMakeVisible (box);
 
-        previousButton.onClick = [this] { browse (-1); };
-        nextButton.onClick = [this] { browse (1); };
+        previousButton.onClick = [this] { step (-1); };
+        nextButton.onClick = [this] { step (1); };
+
+        // Only if they've something to step through
+        const auto library = SoundLibrary::forBlock (*node);
+        hasArrows = canBrowse() || ! library.getNames().isEmpty() || ! library.getGroups().isEmpty();
 
         for (auto* button : { &previousButton, &nextButton })
         {
             button->setWantsKeyboardFocus (false);
             addChildComponent (button);
-            button->setVisible (canBrowse());
+            button->setVisible (hasArrows);
         }
 
         refresh();
     }
 
-    int getPreferredWidth() const override    { return canBrowse() ? 300 : 210; }
+    int getPreferredWidth() const override    { return hasArrows ? 300 : 210; }
 
     void refresh() override
     {
@@ -535,7 +539,7 @@ public:
         if (current != shownSound)
         {
             shownSound = current;
-            box.setText (current, dontSendNotification);
+            box.setText (SoundLibrary::getName (current), dontSendNotification);
 
             if (popup != nullptr && popup->isVisible())
                 popup->refresh();
@@ -556,7 +560,7 @@ public:
         auto area = getLocalBounds().withTrimmedTop (labelHeight).withSizeKeepingCentre (getWidth(), buttonHeight);
         area = area.withSizeKeepingCentre (jmin (area.getWidth(), maxSoundsWidth), buttonHeight);
 
-        if (canBrowse())
+        if (hasArrows)
         {
             previousButton.setBounds (area.removeFromLeft (arrowWidth));
             nextButton.setBounds (area.removeFromRight (arrowWidth));
@@ -609,12 +613,21 @@ private:
 
     bool canBrowse() const noexcept    { return previous != nullptr && next != nullptr; }
 
-    // The next or previous of the saved sounds, round to the first after the last; or the plugin's
-    // own presets, until there are some
+    // The next or previous sound in the group of the one it's set to, round to the first after the
+    // last. With none set, that's the user's own sounds, or the first group of presets if there are
+    // none of those; with no sounds at all, it's the plugin's own presets.
     void step (int direction)
     {
         const auto library = SoundLibrary::forBlock (*node);
-        const auto names = library.getNames();
+        const auto current = SoundLibrary::getCurrentSound (*node);
+        auto group = SoundLibrary::getGroup (current);
+        auto names = library.getNames (group);
+
+        if (names.isEmpty())
+        {
+            group = library.getGroups()[0];
+            names = group.isNotEmpty() ? library.getNames (group) : StringArray();
+        }
 
         if (names.isEmpty())
         {
@@ -622,12 +635,13 @@ private:
             return;
         }
 
-        const int index = names.indexOf (SoundLibrary::getCurrentSound (*node), true);
+        const int index = SoundLibrary::getGroup (current) == group ? names.indexOf (SoundLibrary::getName (current), true) : -1;
         const int nextIndex = index < 0 ? (direction > 0 ? 0 : names.size() - 1)
                                         : (index + direction + names.size()) % names.size();
+        const auto id = SoundLibrary::makeId (group, names[nextIndex]);
 
-        if (library.load (*node->getProcessor(), names[nextIndex]))
-            SoundLibrary::setCurrentSound (*node, names[nextIndex]);
+        if (library.load (*node->getProcessor(), id))
+            SoundLibrary::setCurrentSound (*node, id);
 
         changed();
     }
@@ -667,6 +681,7 @@ private:
     std::unique_ptr<Pulse> previous, next;
     SoundBox box;
     StepButton previousButton { true }, nextButton { false };
+    bool hasArrows = false;
     String shownSound;
     std::unique_ptr<SoundsPopup> popup;
 };

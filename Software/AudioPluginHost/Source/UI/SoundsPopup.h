@@ -9,11 +9,14 @@
     A popup covering the window with the sounds saved for a block's plugin (see
     SoundLibrary), set out across the screen. Tapping one puts the plugin back as
     it was when it was saved, and closes the popup. Save keeps the plugin as it is
-    now under a name typed on an on-screen keyboard, and each sound has buttons to
-    rename it and to delete it, which moves its file to the Recycle Bin.
+    now under a name typed on an on-screen keyboard, and each of the user's own
+    sounds has buttons to rename it and to delete it, which moves its file to the
+    Recycle Bin.
 
-    For a plugin with parameters that step through its own presets, two buttons
-    step through them, for finding a sound to save.
+    Where the library has the plugin's presets too, a column down the left picks
+    between the user's own sounds and each group of presets, such as each type of
+    sound. Otherwise, for a plugin with parameters that step through its own
+    presets, two buttons step through them, for finding a sound to save.
 */
 class SoundsPopup final : public Component
 {
@@ -21,8 +24,9 @@ public:
     SoundsPopup();
     ~SoundsPopup() override;
 
-    /** Opens over the whole of a component for a block's sounds. canBrowse shows the buttons
-        that step through the plugin's own presets, with onBrowse. */
+    /** Opens over the whole of a component for a block's sounds, showing the group of the one it's
+        set to. canBrowse shows the buttons that step through the plugin's own presets, with
+        onBrowse, if the library has none of them. */
     void show (Component& parent, AudioProcessorGraph::Node::Ptr, const String& title, bool canBrowse);
     void hide();
 
@@ -43,21 +47,28 @@ public:
 private:
     class Tile;
 
-    void loadSound (const String& name);
+    void showGroup (const String& group);
+    void loadSound (const String& id);
     void saveSound();
-    void renameSound (const String& name);
-    void deleteSound (const String& name);
-    void setCurrentSound (const String& name);
+    void renameSound (const String& id);
+    void deleteSound (const String& id);
+    void setCurrentSound (const String& id);
+    void updateGroups();
     void updateTiles();
+    void scrollToCurrentSound();
     Rectangle<int> getPanelBounds() const;
 
     TouchLookAndFeel lookAndFeel;
     AudioProcessorGraph::Node::Ptr node;    // held so the plugin outlives the popup
+    bool canBrowse = false;
+    String group;                           // the group being shown, or empty for the user's own
 
     Label titleLabel, emptyLabel;
     TextButton previousButton, nextButton, saveButton { "Save" }, closeButton { "Close" };
-    Viewport viewport;
-    Component tileHolder;
+    Viewport groupViewport, tileViewport;
+    Component groupHolder, tileHolder;
+    OwnedArray<TextButton> groupButtons;
+    StringArray groups;                     // what each of the group buttons shows, "" for the user's own
     OwnedArray<Tile> tiles;
 
     TextEntryPopup textEntry;

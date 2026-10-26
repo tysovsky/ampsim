@@ -10,25 +10,36 @@ namespace
     constexpr int headerHeight = 52;
     constexpr int headerButtonWidth = 120;
 
-    // The sounds go across the screen in as many columns of at least this width as fit
-    constexpr int minTileWidth = 360;
-    constexpr int tileHeight = 64;
+    // The column of groups down the left
+    constexpr int groupColumnWidth = 200;
+    constexpr int groupButtonHeight = 44;
+    constexpr int groupGap = 6;
+    constexpr int scrollBarRoom = 12;
+
+    // The sounds go across the screen in as many columns of at least this width as fit: the user's
+    // own are wider, for their rename and delete buttons
+    constexpr int minOwnTileWidth = 360;
+    constexpr int minPresetTileWidth = 240;
+    constexpr int tileHeight = 56;
     constexpr int tileGap = 8;
     constexpr int tileButtonWidth = 56;
 }
 
 //==============================================================================
-// A saved sound: tapping it loads it, and its buttons rename and delete it
+// A sound: tapping it loads it, and for one of the user's own, its buttons rename and delete it
 class SoundsPopup::Tile final : public Component
 {
 public:
-    Tile (SoundsPopup& p, const String& soundName, Time saved)
-        : name (soundName), popup (p), saveTime (saved)
+    Tile (SoundsPopup& p, const String& soundId, const String& details, bool canBeChanged)
+        : id (soundId), popup (p), subtitle (details), hasButtons (canBeChanged)
     {
-        renameButton.onClick = [this] { popup.renameSound (name); };
-        deleteButton.onClick = [this] { popup.deleteSound (name); };
-        addAndMakeVisible (renameButton);
-        addAndMakeVisible (deleteButton);
+        if (hasButtons)
+        {
+            renameButton.onClick = [this] { popup.renameSound (id); };
+            deleteButton.onClick = [this] { popup.deleteSound (id); };
+            addAndMakeVisible (renameButton);
+            addAndMakeVisible (deleteButton);
+        }
     }
 
     void setCurrent (bool isCurrentSound)
@@ -64,15 +75,23 @@ public:
         }
 
         // Room for the rename and delete buttons at the right-hand end
-        auto area = getLocalBounds().withTrimmedRight (2 * tileButtonWidth).reduced (16, 8);
+        auto area = getLocalBounds().withTrimmedRight (hasButtons ? 2 * tileButtonWidth : 0).reduced (14, 7);
+        const auto details = isCurrent ? String ("Loaded now") : subtitle;
 
         g.setColour (textColour);
         g.setFont (Font (18.0f, Font::bold));
-        g.drawText (name, area.removeFromTop (area.getHeight() / 2), Justification::bottomLeft, true);
+
+        if (details.isEmpty())
+        {
+            g.drawText (SoundLibrary::getName (id), area, Justification::centredLeft, true);
+            return;
+        }
+
+        g.drawText (SoundLibrary::getName (id), area.removeFromTop (area.getHeight() / 2), Justification::bottomLeft, true);
 
         g.setColour (textColour.withAlpha (0.6f));
         g.setFont (Font (14.0f));
-        g.drawText (isCurrent ? "Loaded now" : "Saved " + saveTime.formatted ("%d %b %Y"), area, Justification::topLeft, true);
+        g.drawText (details, area, Justification::topLeft, true);
     }
 
     void resized() override
@@ -90,14 +109,15 @@ public:
 
         // Not at the end of a drag to scroll the sounds
         if (e.mouseWasClicked())
-            popup.loadSound (name);
+            popup.loadSound (id);
     }
 
-    const String name;
+    const String id;
 
 private:
     SoundsPopup& popup;
-    const Time saveTime;
+    const String subtitle;
+    const bool hasButtons;
     bool isCurrent = false;
     PencilButton renameButton;
     BinButton deleteButton;
@@ -134,11 +154,16 @@ SoundsPopup::SoundsPopup()
         addAndMakeVisible (button);
     }
 
-    viewport.setViewedComponent (&tileHolder, false);
-    viewport.setScrollOnDragMode (Viewport::ScrollOnDragMode::all);
-    viewport.setScrollBarsShown (true, false);
-    viewport.setScrollBarThickness (8);
-    addAndMakeVisible (viewport);
+    for (auto* viewport : { &groupViewport, &tileViewport })
+    {
+        viewport->setScrollOnDragMode (Viewport::ScrollOnDragMode::all);
+        viewport->setScrollBarsShown (true, false);
+        viewport->setScrollBarThickness (8);
+        addAndMakeVisible (viewport);
+    }
+
+    groupViewport.setViewedComponent (&groupHolder, false);
+    tileViewport.setViewedComponent (&tileHolder, false);
 }
 
 SoundsPopup::~SoundsPopup()
@@ -147,29 +172,29 @@ SoundsPopup::~SoundsPopup()
 }
 
 //==============================================================================
-void SoundsPopup::show (Component& parent, AudioProcessorGraph::Node::Ptr newNode, const String& title, bool canBrowse)
+void SoundsPopup::show (Component& parent, AudioProcessorGraph::Node::Ptr newNode, const String& title, bool canBrowsePresets)
 {
     node = std::move (newNode);
-
+    canBrowse = canBrowsePresets;
     titleLabel.setText (title, dontSendNotification);
-    previousButton.setVisible (canBrowse);
-    nextButton.setVisible (canBrowse);
-    emptyLabel.setText (canBrowse ? "No sounds saved yet. Find one with Preset, then tap Save to keep it here."
-                                  : "No sounds saved yet. Tap Save to keep the sound as it is now.",
-                        dontSendNotification);
 
     if (getParentComponent() != &parent)
         parent.addChildComponent (this);
 
     setBounds (parent.getLocalBounds());
-    updateTiles();
+    updateGroups();
 
-    // Scrolled to the sound the block is set to
-    viewport.setViewPosition (0, 0);
+    // The group of the sound it's set to, or with none, the user's own sounds unless there are
+    // only presets
+    const auto library = SoundLibrary::forBlock (*node);
+    const auto current = SoundLibrary::getCurrentSound (*node);
+    auto groupToShow = SoundLibrary::getGroup (current);
 
-    for (auto* tile : tiles)
-        if (tile->isCurrentSound() && tile->getBottom() > viewport.getViewHeight())
-            viewport.setViewPosition (0, tile->getY());
+    if (! groups.contains (groupToShow) || (current.isEmpty() && groups.size() > 1 && library.getNames().isEmpty()))
+        groupToShow = groups.size() > 1 ? groups[1] : String();
+
+    showGroup (groupToShow);
+    scrollToCurrentSound();
 
     setVisible (true);
     toFront (false);
@@ -191,7 +216,50 @@ void SoundsPopup::refresh()
     const auto current = SoundLibrary::getCurrentSound (*node);
 
     for (auto* tile : tiles)
-        tile->setCurrent (tile->name.equalsIgnoreCase (current));
+        tile->setCurrent (tile->id.equalsIgnoreCase (current));
+}
+
+void SoundsPopup::updateGroups()
+{
+    groupButtons.clear();
+    groups.clear();
+
+    const auto presetGroups = SoundLibrary::forBlock (*node).getGroups();
+
+    // The column's only there for a library with presets, and the user's own sounds come first
+    if (! presetGroups.isEmpty())
+    {
+        groups.add ({});
+        groups.addArray (presetGroups);
+    }
+
+    for (auto& g : groups)
+    {
+        auto* button = groupButtons.add (new TextButton (g.isEmpty() ? "My sounds" : g));
+        button->setWantsKeyboardFocus (false);
+        button->onClick = [this, g] { showGroup (g); };
+        groupHolder.addAndMakeVisible (button);
+    }
+
+    // The plugin's own presets are only stepped through here if the library hasn't got them
+    previousButton.setVisible (canBrowse && groups.isEmpty());
+    nextButton.setVisible (canBrowse && groups.isEmpty());
+    groupViewport.setVisible (! groups.isEmpty());
+}
+
+void SoundsPopup::showGroup (const String& groupToShow)
+{
+    group = groupToShow;
+
+    for (int i = 0; i < groupButtons.size(); ++i)
+        groupButtons[i]->setToggleState (groups[i] == group, dontSendNotification);
+
+    emptyLabel.setText (canBrowse && groups.isEmpty() ? "No sounds saved yet. Find one with Preset, then tap Save to keep it here."
+                                                      : "No sounds of your own yet. Tap Save to keep the sound as it is now.",
+                        dontSendNotification);
+
+    updateTiles();
+    tileViewport.setViewPosition (0, 0);
 }
 
 void SoundsPopup::updateTiles()
@@ -201,9 +269,15 @@ void SoundsPopup::updateTiles()
     if (node != nullptr)
     {
         const auto library = SoundLibrary::forBlock (*node);
+        const bool isOwn = group.isEmpty();
 
-        for (auto& name : library.getNames())
-            tileHolder.addAndMakeVisible (tiles.add (new Tile (*this, name, library.getSaveTime (name))));
+        for (auto& name : library.getNames (group))
+        {
+            const auto id = SoundLibrary::makeId (group, name);
+            const auto details = isOwn ? "Saved " + library.getSaveTime (id).formatted ("%d %b %Y") : String();
+
+            tileHolder.addAndMakeVisible (tiles.add (new Tile (*this, id, details, isOwn)));
+        }
     }
 
     refresh();
@@ -211,14 +285,21 @@ void SoundsPopup::updateTiles()
     resized();
 }
 
+void SoundsPopup::scrollToCurrentSound()
+{
+    for (auto* tile : tiles)
+        if (tile->isCurrentSound() && tile->getBottom() > tileViewport.getViewPositionY() + tileViewport.getViewHeight())
+            tileViewport.setViewPosition (0, jmax (0, tile->getBottom() - tileViewport.getViewHeight()));
+}
+
 //==============================================================================
-void SoundsPopup::loadSound (const String& name)
+void SoundsPopup::loadSound (const String& id)
 {
     if (node == nullptr)
         return;
 
-    if (SoundLibrary::forBlock (*node).load (*node->getProcessor(), name))
-        setCurrentSound (name);
+    if (SoundLibrary::forBlock (*node).load (*node->getProcessor(), id))
+        setCurrentSound (id);
 
     // Like picking from a dropdown list
     hide();
@@ -231,79 +312,81 @@ void SoundsPopup::saveSound()
 
     const auto library = SoundLibrary::forBlock (*node);
     const auto current = SoundLibrary::getCurrentSound (*node);
+    const bool isOwnSound = current.isNotEmpty() && SoundLibrary::getGroup (current).isEmpty() && library.contains (current);
 
-    // The name of the sound the block is set to, to save over it, or a new one
-    const auto suggestion = library.contains (current) ? current : library.getUnusedName ("Sound 1");
+    // The name of the sound it's set to: to save over it if it's one of the user's own, or to keep
+    // a preset as it is now; or a new one
+    const auto suggestion = current.isNotEmpty() ? SoundLibrary::getName (current) : library.getUnusedName ("Sound 1");
 
-    textEntry.show (*this, "Save sound", suggestion, [safeThis = SafePointer<SoundsPopup> (this), library, current] (const String& typed)
+    textEntry.show (*this, "Save sound", suggestion, [safeThis = SafePointer<SoundsPopup> (this), library, current, isOwnSound] (const String& typed)
     {
         const auto name = SoundLibrary::makeLegalName (typed);
 
         if (safeThis == nullptr || safeThis->node == nullptr || name.isEmpty())
             return;
 
-        // Keeping the name of the sound it's set to saves over that sound; another sound's name gets
-        // a number on the end, rather than replacing that sound
-        const auto saveAs = name.equalsIgnoreCase (current) ? name : library.getUnusedName (name);
+        // Keeping the name of the user's own sound it's set to saves over it; another sound's name
+        // gets a number on the end, rather than replacing that sound
+        const auto saveAs = isOwnSound && name.equalsIgnoreCase (current) ? name : library.getUnusedName (name);
 
         if (library.save (*safeThis->node->getProcessor(), saveAs))
         {
             safeThis->setCurrentSound (saveAs);
-            safeThis->updateTiles();
-
-            for (auto* tile : safeThis->tiles)
-                if (tile->isCurrentSound())
-                    safeThis->viewport.setViewPosition (0, jmax (0, tile->getBottom() - safeThis->viewport.getViewHeight()));
+            safeThis->updateGroups();
+            safeThis->showGroup ({});
+            safeThis->scrollToCurrentSound();
         }
     });
 }
 
-void SoundsPopup::renameSound (const String& name)
+void SoundsPopup::renameSound (const String& id)
 {
-    textEntry.show (*this, "Rename sound", name, [safeThis = SafePointer<SoundsPopup> (this), name] (const String& typed)
+    textEntry.show (*this, "Rename sound", SoundLibrary::getName (id), [safeThis = SafePointer<SoundsPopup> (this), id] (const String& typed)
     {
         auto newName = SoundLibrary::makeLegalName (typed);
+        const auto name = SoundLibrary::getName (id);
 
         if (safeThis == nullptr || safeThis->node == nullptr || newName.isEmpty() || newName == name)
             return;
 
         // Another sound with the name gets a number on the end; changing only the capitals is fine
         const auto library = SoundLibrary::forBlock (*safeThis->node);
+        const auto groupOfSound = SoundLibrary::getGroup (id);
 
         if (! newName.equalsIgnoreCase (name))
-            newName = library.getUnusedName (newName);
+            newName = library.getUnusedName (newName, groupOfSound);
 
-        if (! library.rename (name, newName))
+        if (! library.rename (id, newName))
             return;
 
-        if (SoundLibrary::getCurrentSound (*safeThis->node).equalsIgnoreCase (name))
-            safeThis->setCurrentSound (newName);
+        if (SoundLibrary::getCurrentSound (*safeThis->node).equalsIgnoreCase (id))
+            safeThis->setCurrentSound (SoundLibrary::makeId (groupOfSound, newName));
 
         safeThis->updateTiles();
     });
 }
 
-void SoundsPopup::deleteSound (const String& name)
+void SoundsPopup::deleteSound (const String& id)
 {
     // Later, as the tiles are made again without it, including the one with the button that's just
     // been tapped
-    MessageManager::callAsync ([safeThis = SafePointer<SoundsPopup> (this), name]
+    MessageManager::callAsync ([safeThis = SafePointer<SoundsPopup> (this), id]
     {
         if (safeThis == nullptr || safeThis->node == nullptr)
             return;
 
-        SoundLibrary::forBlock (*safeThis->node).remove (name);
+        SoundLibrary::forBlock (*safeThis->node).remove (id);
 
-        if (SoundLibrary::getCurrentSound (*safeThis->node).equalsIgnoreCase (name))
+        if (SoundLibrary::getCurrentSound (*safeThis->node).equalsIgnoreCase (id))
             safeThis->setCurrentSound ({});
 
         safeThis->updateTiles();
     });
 }
 
-void SoundsPopup::setCurrentSound (const String& name)
+void SoundsPopup::setCurrentSound (const String& id)
 {
-    SoundLibrary::setCurrentSound (*node, name);
+    SoundLibrary::setCurrentSound (*node, id);
     refresh();
 
     if (onSoundChange != nullptr)
@@ -346,12 +429,27 @@ void SoundsPopup::resized()
 
     titleLabel.setBounds (header);
 
-    const auto content = panel.reduced (padding, 10);
-    viewport.setBounds (content);
+    auto content = panel.reduced (padding, 10);
+
+    // The groups down the left, leaving room for the scroll bar
+    if (! groupButtons.isEmpty())
+    {
+        groupViewport.setBounds (content.removeFromLeft (groupColumnWidth));
+        content.removeFromLeft (padding);
+
+        const int buttonWidth = groupColumnWidth - scrollBarRoom;
+        groupHolder.setSize (buttonWidth, groupButtons.size() * (groupButtonHeight + groupGap) - groupGap);
+
+        for (int i = 0; i < groupButtons.size(); ++i)
+            groupButtons[i]->setBounds (0, i * (groupButtonHeight + groupGap), buttonWidth, groupButtonHeight);
+    }
+
+    tileViewport.setBounds (content);
     emptyLabel.setBounds (content);
 
     // Across and then down, leaving room for the scroll bar on the right
-    const int width = content.getWidth() - viewport.getScrollBarThickness() - 4;
+    const int width = content.getWidth() - scrollBarRoom;
+    const int minTileWidth = group.isEmpty() ? minOwnTileWidth : minPresetTileWidth;
     const int columns = jmax (1, (width + tileGap) / (minTileWidth + tileGap));
     const int tileWidth = (width - (columns - 1) * tileGap) / columns;
     const int rows = (tiles.size() + columns - 1) / columns;

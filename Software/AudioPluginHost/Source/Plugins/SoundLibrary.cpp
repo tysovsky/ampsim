@@ -4,9 +4,45 @@
 namespace
 {
     const String fileExtension = ".sound";
+    const String presetsFolderName = "Presets";
 
     // A "view." property, as those are saved with the chain
     const Identifier currentSoundProperty { "view.sound" };
+
+    // Sounds are saved compressed, as a plugin's state can be half a megabyte; the first ones
+    // weren't, and are read as they are
+    std::unique_ptr<XmlElement> readSound (const File& file)
+    {
+        FileInputStream in (file);
+
+        if (! in.openedOk())
+            return {};
+
+        if (in.readByte() == '<')
+            return XmlDocument::parse (file);
+
+        in.setPosition (0);
+        GZIPDecompressorInputStream unzipped (in);
+        return XmlDocument::parse (unzipped.readEntireStreamAsString());
+    }
+
+    bool writeSound (const XmlElement& sound, const File& file)
+    {
+        // Into a file of its own first, so a sound being saved over isn't lost if it fails
+        TemporaryFile temp (file);
+
+        {
+            FileOutputStream out (temp.getFile());
+
+            if (! out.openedOk())
+                return false;
+
+            GZIPCompressorOutputStream zipped (out);
+            sound.writeTo (zipped);
+        }
+
+        return temp.overwriteTargetFileWithTemporary();
+    }
 }
 
 SoundLibrary::SoundLibrary (const String& plugin, const String& module)
@@ -25,25 +61,52 @@ SoundLibrary SoundLibrary::forBlock (const AudioProcessorGraph::Node& node)
              node.properties["module"].toString() };
 }
 
-StringArray SoundLibrary::getNames() const
+StringArray SoundLibrary::getGroups() const
+{
+    StringArray groups;
+
+    for (auto& group : folder.getChildFile (presetsFolderName).findChildFiles (File::findDirectories, false))
+        groups.add (group.getFileName());
+
+    groups.sortNatural();
+    return groups;
+}
+
+StringArray SoundLibrary::getNames (const String& group) const
 {
     StringArray names;
 
-    for (auto& file : folder.findChildFiles (File::findFiles, false, "*" + fileExtension))
+    for (auto& file : getGroupFolder (group).findChildFiles (File::findFiles, false, "*" + fileExtension))
         names.add (file.getFileNameWithoutExtension());
 
     names.sortNatural();
     return names;
 }
 
-bool SoundLibrary::contains (const String& name) const
+String SoundLibrary::makeId (const String& group, const String& name)
 {
-    return name.isNotEmpty() && getFile (name).existsAsFile();
+    return group.isNotEmpty() ? group + "/" + name : name;
 }
 
-bool SoundLibrary::save (AudioProcessor& processor, const String& name) const
+String SoundLibrary::getGroup (const String& id)
 {
-    if (makeLegalName (name).isEmpty() || folder.createDirectory().failed())
+    // (upToLastOccurrenceOf() would give the whole of a name without one)
+    return id.containsChar ('/') ? id.upToLastOccurrenceOf ("/", false, false) : String();
+}
+
+String SoundLibrary::getName (const String& id)
+{
+    return id.fromLastOccurrenceOf ("/", false, false);
+}
+
+bool SoundLibrary::contains (const String& id) const
+{
+    return getName (id).isNotEmpty() && getFile (id).existsAsFile();
+}
+
+bool SoundLibrary::save (AudioProcessor& processor, const String& id) const
+{
+    if (makeLegalName (getName (id)).isEmpty() || getGroupFolder (getGroup (id)).createDirectory().failed())
         return false;
 
     MemoryBlock state;
@@ -58,12 +121,12 @@ bool SoundLibrary::save (AudioProcessor& processor, const String& name) const
     sound.setAttribute ("saved", Time::getCurrentTime().toISO8601 (true));
     sound.createNewChildElement ("STATE")->addTextElement (state.toBase64Encoding());
 
-    return sound.writeTo (getFile (name));
+    return writeSound (sound, getFile (id));
 }
 
-bool SoundLibrary::load (AudioProcessor& processor, const String& name) const
+bool SoundLibrary::load (AudioProcessor& processor, const String& id) const
 {
-    const auto sound = XmlDocument::parse (getFile (name));
+    const auto sound = readSound (getFile (id));
     auto* stateElement = sound != nullptr && sound->hasTagName ("SOUND") ? sound->getChildByName ("STATE") : nullptr;
 
     MemoryBlock state;
@@ -75,10 +138,10 @@ bool SoundLibrary::load (AudioProcessor& processor, const String& name) const
     return true;
 }
 
-bool SoundLibrary::rename (const String& name, const String& newName) const
+bool SoundLibrary::rename (const String& id, const String& newName) const
 {
-    const auto file = getFile (name);
-    const auto renamed = getFile (newName);
+    const auto file = getFile (id);
+    const auto renamed = getFile (makeId (getGroup (id), newName));
 
     if (makeLegalName (newName).isEmpty() || ! file.existsAsFile())
         return false;
@@ -90,22 +153,23 @@ bool SoundLibrary::rename (const String& name, const String& newName) const
     return ! renamed.exists() && file.moveFileTo (renamed);
 }
 
-bool SoundLibrary::remove (const String& name) const
+bool SoundLibrary::remove (const String& id) const
 {
-    const auto file = getFile (name);
+    const auto file = getFile (id);
     return file.existsAsFile() && file.moveToTrash();
 }
 
-Time SoundLibrary::getSaveTime (const String& name) const
+Time SoundLibrary::getSaveTime (const String& id) const
 {
-    return getFile (name).getLastModificationTime();
+    return getFile (id).getLastModificationTime();
 }
 
-String SoundLibrary::getUnusedName (const String& name) const
+String SoundLibrary::getUnusedName (const String& name, const String& group) const
 {
     const auto legalName = makeLegalName (name);
+    const auto isUsed = [&] (const String& n) { return contains (makeId (group, n)); };
 
-    if (! contains (legalName))
+    if (! isUsed (legalName))
         return legalName;
 
     // Counting on from a number it already ends with, e.g. "Pad 2" goes to "Pad 3"
@@ -118,7 +182,7 @@ String SoundLibrary::getUnusedName (const String& name) const
         number = lastWord.getIntValue() + 1;
     }
 
-    while (contains (base + " " + String (number)))
+    while (isUsed (base + " " + String (number)))
         ++number;
 
     return base + " " + String (number);
@@ -129,12 +193,12 @@ String SoundLibrary::getCurrentSound (const AudioProcessorGraph::Node& node)
     return node.properties[currentSoundProperty].toString();
 }
 
-void SoundLibrary::setCurrentSound (AudioProcessorGraph::Node& node, const String& name)
+void SoundLibrary::setCurrentSound (AudioProcessorGraph::Node& node, const String& id)
 {
-    if (name.isEmpty())
+    if (id.isEmpty())
         node.properties.remove (currentSoundProperty);
     else
-        node.properties.set (currentSoundProperty, name);
+        node.properties.set (currentSoundProperty, id);
 }
 
 String SoundLibrary::makeLegalName (const String& name)
@@ -142,7 +206,12 @@ String SoundLibrary::makeLegalName (const String& name)
     return File::createLegalFileName (name.trim()).trim();
 }
 
-File SoundLibrary::getFile (const String& name) const
+File SoundLibrary::getGroupFolder (const String& group) const
 {
-    return folder.getChildFile (makeLegalName (name) + fileExtension);
+    return group.isNotEmpty() ? folder.getChildFile (presetsFolderName).getChildFile (makeLegalName (group)) : folder;
+}
+
+File SoundLibrary::getFile (const String& id) const
+{
+    return getGroupFolder (getGroup (id)).getChildFile (makeLegalName (getName (id)) + fileExtension);
 }
