@@ -9,6 +9,10 @@
     colour theme, laid out for the 1280x400 touchscreen: two columns of large
     dropdowns and buttons. A tick box in its header turns free links between blocks
     on (see GraphEditorPanel::setLinksEnabled()).
+
+    With an ESI MAYA44 eX card installed, it also has a row for switching the card's
+    inputs: 1/2 between line, mic and mic with 48V phantom power, and 3/4 between line
+    and Hi-Z (see Maya44Inputs).
 */
 class AudioSettingsPopup final : public Component,
     private ChangeListener
@@ -38,6 +42,8 @@ private:
 
     void updateControls();
     void updateMidiControls();
+    void updateCardInputs();
+    void cardInputModeChosen(bool isInput12);
     void layoutMidiInputButtons(Rectangle<int> area);
     Rectangle<int> getPanelBounds() const;
 
@@ -54,10 +60,11 @@ private:
     std::unique_ptr<CheckBox> freeLinksBox;
 
     Label deviceTypeLabel, outputLabel, inputLabel, sampleRateLabel, bufferSizeLabel,
-          outputChannelsLabel, inputChannelsLabel, midiInputsLabel, midiOutputLabel, noMidiInputsLabel, themeLabel;
+          outputChannelsLabel, inputChannelsLabel, midiInputsLabel, midiOutputLabel, noMidiInputsLabel, themeLabel,
+          cardInputsLabel;
 
     ComboBox deviceTypeBox, outputDeviceBox, inputDeviceBox, sampleRateBox, bufferSizeBox,
-             outputChannelsBox, inputChannelsBox, midiOutputBox, themeBox;
+             outputChannelsBox, inputChannelsBox, midiOutputBox, themeBox, input12ModeBox, input34ModeBox;
 
     TextButton testButton{ "Test" }, controlPanelButton{ "Driver settings" };
     std::unique_ptr<InputLevelMeter> inputLevelMeter;

@@ -59,6 +59,7 @@ juce_generate_juce_header(AudioPluginHost)
 
 target_sources(AudioPluginHost PRIVATE
     Source/HostStartup.cpp
+    Source/Audio/Maya44Inputs.cpp
     Source/Audio/Recorder.cpp
     Source/Plugins/ARAPlugin.cpp
     Source/Plugins/IOConfigurationWindow.cpp
@@ -118,6 +119,11 @@ target_compile_definitions(AudioPluginHost PRIVATE
     # deploy to older versions of macOS/iOS.
     JUCE_SILENCE_XCODE_15_LINKER_WARNING=1)
 
+# Maya44Inputs finds the ESI MAYA44 eX card's control driver through SetupAPI
+if(WIN32)
+    target_link_libraries(AudioPluginHost PRIVATE setupapi)
+endif()
+
 if(WIN32 AND ASIO_SDK_DIR)
     target_include_directories(AudioPluginHost PRIVATE "${ASIO_SDK_DIR}/common")
     target_compile_definitions(AudioPluginHost PRIVATE JUCE_ASIO=1)
@@ -145,4 +151,8 @@ target_link_libraries(AudioPluginHost PRIVATE
 
 if(AUDIOPLUGINHOST_BUILD_TOOLS)
     add_subdirectory(Tools/ParamDump)
+
+    if(WIN32)
+        add_subdirectory(Tools/Maya44Inputs)
+    endif()
 endif()
