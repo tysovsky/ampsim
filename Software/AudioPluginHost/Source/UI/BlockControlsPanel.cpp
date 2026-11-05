@@ -58,6 +58,19 @@ BlockControlsPanel::BlockControlsPanel (AudioDeviceManager& dm)
     strip.onViewChange = [this] { if (onViewChange != nullptr) onViewChange(); };
     strip.findCardInputs = [this] (const AudioProcessorGraph::Node& n) { return findMaya44Inputs (deviceManager, n); };
 
+    // A chain's input or output only offers the channels the audio device has, e.g. 1 to 4 and
+    // 1+2 and 3+4 for a four-channel card, rather than all eight a chain's end can take
+    strip.isStepOffered = [this] (const AudioProcessorGraph::Node& n, const AudioProcessorParameter& parameter, int step)
+    {
+        auto* end = dynamic_cast<ChainEndProcessor*> (n.getProcessor());
+
+        if (end == nullptr || &parameter != &end->getChannel())
+            return true;
+
+        const bool isInput = dynamic_cast<ChainInputProcessor*> (end) != nullptr;
+        return ChainEndProcessor::isChoiceWithin (step, ChainEndProcessor::getNumChannelsAvailable (deviceManager, isInput));
+    };
+
     closeButton.setButtonText (String (CharPointer_UTF8 ("\xc3\x97")));
 
     for (auto* button : { &closeButton, &editButton })

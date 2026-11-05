@@ -318,21 +318,28 @@ private:
 
 //==============================================================================
 // One of a set of options, from a row of buttons or a list: a parameter's steps, or a <View>'s
-// options
+// options. It can offer only some of them (offered, counting from 0), e.g. only the channels the
+// audio device has; otherwise it offers them all.
 class ControlStrip::ChoiceControl final : public Control
 {
 public:
     ChoiceControl (const XmlElement& e, const String& defaultLabel, const StringArray& names,
-                   std::function<int()> getChoice, std::function<void (int)> setChoice)
-        : Control (e, defaultLabel), numChoices (jmax (2, names.size())), get (std::move (getChoice)), set (std::move (setChoice))
+                   std::function<int()> getChoice, std::function<void (int)> setChoice,
+                   std::vector<int> offered = {})
+        : Control (e, defaultLabel), numChoices (jmax (2, names.size())), get (std::move (getChoice)), set (std::move (setChoice)),
+          choices (std::move (offered))
     {
+        if (choices.empty())
+            for (int i = 0; i < names.size(); ++i)
+                choices.push_back (i);
+
         const auto style = e.getStringAttribute ("style");
-        useList = style.equalsIgnoreCase ("list") || (style.isEmpty() && numChoices > 4);
+        useList = style.equalsIgnoreCase ("list") || (style.isEmpty() && choices.size() > 4);
 
         if (useList)
         {
-            for (int i = 0; i < names.size(); ++i)
-                list.addItem (names[i], i + 1);
+            for (auto choice : choices)
+                list.addItem (names[choice], choice + 1);
 
             list.setWantsKeyboardFocus (false);
             list.onChange = [this] { choose (list.getSelectedId() - 1); };
@@ -340,13 +347,13 @@ public:
         }
         else
         {
-            for (int i = 0; i < names.size(); ++i)
+            for (size_t i = 0; i < choices.size(); ++i)
             {
-                auto* button = buttons.add (new TextButton (names[i]));
+                auto* button = buttons.add (new TextButton (names[choices[i]]));
                 button->setWantsKeyboardFocus (false);
                 button->setConnectedEdges ((i > 0 ? Button::ConnectedOnLeft : 0)
-                                            | (i + 1 < names.size() ? Button::ConnectedOnRight : 0));
-                button->onClick = [this, i] { choose (i); };
+                                            | (i + 1 < choices.size() ? Button::ConnectedOnRight : 0));
+                button->onClick = [this, choice = choices[i]] { choose (choice); };
                 addAndMakeVisible (button);
             }
         }
@@ -354,8 +361,11 @@ public:
         refresh();
     }
 
-    /** The steps of a parameter, named by the definition file's labels="A|B|C" where it has them */
-    static std::unique_ptr<ChoiceControl> forParameter (AudioProcessorParameter& p, const XmlElement& e)
+    /** The steps of a parameter, named by the definition file's labels="A|B|C" where it has them,
+        and offered where isOffered says so (or all of them, without it), as well as the step the
+        parameter is on. */
+    static std::unique_ptr<ChoiceControl> forParameter (AudioProcessorParameter& p, const XmlElement& e,
+                                                        const std::function<bool (int step)>& isOffered)
     {
         const int numSteps = jmax (2, getNumSteps (p));
         StringArray names;
@@ -367,9 +377,17 @@ public:
 
         names.removeRange (numSteps, names.size());
 
+        std::vector<int> offered;
+        const int current = getStep (p, numSteps);
+
+        for (int step = 0; step < numSteps; ++step)
+            if (isOffered == nullptr || isOffered (step) || step == current)
+                offered.push_back (step);
+
         return std::make_unique<ChoiceControl> (e, p.getName (32), names,
                                                 [&p, numSteps] { return getStep (p, numSteps); },
-                                                [&p, numSteps] (int step) { setParameter (p, getStepValue (step, numSteps)); });
+                                                [&p, numSteps] (int step) { setParameter (p, getStepValue (step, numSteps)); },
+                                                std::move (offered));
     }
 
     /** A <View>'s options, which pick what's shown rather than change the plugin. The first is
@@ -408,12 +426,22 @@ public:
             list.setSelectedId (choice + 1, dontSendNotification);
 
         for (int i = 0; i < buttons.size(); ++i)
-            buttons[i]->setToggleState (i == choice, dontSendNotification);
+            buttons[i]->setToggleState (choices[(size_t) i] == choice, dontSendNotification);
     }
 
-    // A knob turns it through its options, and a switch picks the first or last
-    void setFromKnob (float position) override         { choose (roundToInt (position * (float) (numChoices - 1))); }
-    void setFromSwitch (bool shouldBeOn) override      { choose (shouldBeOn ? numChoices - 1 : 0); }
+    // A knob turns it through the options it offers, and a switch picks the first or last of them
+    void setFromKnob (float position) override
+    {
+        if (! choices.empty())
+            choose (choices[(size_t) roundToInt (position * (float) (choices.size() - 1))]);
+    }
+
+    void setFromSwitch (bool shouldBeOn) override
+    {
+        if (! choices.empty())
+            choose (shouldBeOn ? choices.back() : choices.front());
+    }
+
     bool isOn() const override                         { return get() > 0; }
 
     void paint (Graphics& g) override    { paintLabel (g); }
@@ -449,6 +477,7 @@ private:
     const int numChoices;
     const std::function<int()> get;
     const std::function<void (int)> set;
+    std::vector<int> choices;   // the ones it offers, in order
     bool useList = false;
     ComboBox list;
     OwnedArray<TextButton> buttons;
@@ -856,7 +885,15 @@ void ControlStrip::addControls (const XmlElement& element, const std::vector<Con
             if (child->hasTagName ("Knob"))          control = std::make_unique<KnobControl> (*parameter, *child, false);
             else if (child->hasTagName ("Fader"))    control = std::make_unique<KnobControl> (*parameter, *child, true);
             else if (child->hasTagName ("Switch"))   control = std::make_unique<SwitchControl> (*parameter, *child);
-            else if (child->hasTagName ("Choice"))   control = ChoiceControl::forParameter (*parameter, *child);
+            else if (child->hasTagName ("Choice"))
+            {
+                std::function<bool (int)> isOffered;
+
+                if (isStepOffered != nullptr)
+                    isOffered = [this, parameter] (int step) { return isStepOffered (*node, *parameter, step); };
+
+                control = ChoiceControl::forParameter (*parameter, *child, isOffered);
+            }
             else if (child->hasTagName ("Trigger"))  control = std::make_unique<TriggerControl> (*parameter, *child);
         }
         else

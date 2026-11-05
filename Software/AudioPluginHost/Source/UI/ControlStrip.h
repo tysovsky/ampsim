@@ -68,6 +68,11 @@ public:
         which changes a property of the block, not the plugin. */
     std::function<void()> onViewChange;
 
+    /** Whether a <Choice> offers one of its parameter's steps, e.g. only the channels the audio
+        device has, for a chain's input or output. Without it, every step is offered. The step the
+        parameter is on is offered either way. Asked as the controls are built. */
+    std::function<bool (const AudioProcessorGraph::Node&, const AudioProcessorParameter&, int step)> isStepOffered;
+
     /** For an <InputMode/>: which of the MAYA44 eX card's pairs of inputs a block takes its signal
         from, if any. Asked again as the block's channel changes. Without it, <InputMode/> isn't shown. */
     std::function<std::optional<Maya44Inputs::InputPair> (const AudioProcessorGraph::Node&)> findCardInputs;

@@ -590,13 +590,33 @@ ChainEndProcessor::ChainEndProcessor (const BusesProperties& buses, const String
 
 std::pair<int, int> ChainEndProcessor::getChosenChannels() const noexcept
 {
-    const int choice = channel->getIndex();
+    return getChannelsFor (channel->getIndex());
+}
 
+std::pair<int, int> ChainEndProcessor::getChannelsFor (int choice) noexcept
+{
     if (choice < maxChannels)
         return { choice, -1 };
 
     const int pair = choice - maxChannels;
     return { pair * 2, pair * 2 + 1 };
+}
+
+bool ChainEndProcessor::isChoiceWithin (int choice, int numChannels) noexcept
+{
+    const auto [first, second] = getChannelsFor (choice);
+    return jmax (first, second) < numChannels;
+}
+
+int ChainEndProcessor::getNumChannelsAvailable (AudioDeviceManager& deviceManager, bool isInput)
+{
+    if (auto* device = deviceManager.getCurrentAudioDevice())
+    {
+        const auto active = isInput ? device->getActiveInputChannels() : device->getActiveOutputChannels();
+        return jmin (maxChannels, active.countNumberOfSetBits());
+    }
+
+    return maxChannels;
 }
 
 String ChainEndProcessor::getBlockName() const

@@ -555,9 +555,10 @@ void GraphEditorPanel::addChain()
                     usedChannels.insert (input->getChosenChannels().first);
     }
 
+    const int numInputs = getNumChannels != nullptr ? getNumChannels (true) : ChainEndProcessor::maxChannels;
     int channel = 0;
 
-    while (usedChannels.count (channel) > 0 && channel + 1 < ChainEndProcessor::maxChannels)
+    while (usedChannels.count (channel) > 0 && channel + 1 < numInputs)
         ++channel;
 
     const auto input = graph.addChainEnd (true, id, { 0.0, 0.0 }, ChainEndProcessor::getChoiceFor (channel, false), {}, {});
@@ -566,7 +567,10 @@ void GraphEditorPanel::addChain()
 
 void GraphEditorPanel::addParallelEnd (const Chain& chain, size_t column)
 {
-    // The channel after the column's last one, so Input 1 is followed by Input 2, and Output 1+2 by Output 3+4
+    // The channel after the column's last one, so Input 1 is followed by Input 2, and Output 1+2 by Output 3+4,
+    // or back to the first after the last channel there is
+    const bool isInput = column == 0;
+    const int numChannels = getNumChannels != nullptr ? getNumChannels (isInput) : ChainEndProcessor::maxChannels;
     int choice = 0;
 
     if (auto* last = getChainEnd (chain.columns[column].nodes.back()))
@@ -574,12 +578,13 @@ void GraphEditorPanel::addParallelEnd (const Chain& chain, size_t column)
         const auto [first, second] = last->getChosenChannels();
         const bool isPair = second >= 0;
         const int next = first + (isPair ? 2 : 1);
+        const int lastOfNext = next + (isPair ? 1 : 0);
 
-        choice = ChainEndProcessor::getChoiceFor (next < ChainEndProcessor::maxChannels ? next : 0, isPair);
+        choice = ChainEndProcessor::getChoiceFor (lastOfNext < numChannels ? next : 0, isPair);
     }
 
     const auto point = getParallelInsertPoint (chain, column);
-    graph.addChainEnd (column == 0, point.chain, point.position, choice, point.sources, point.destinations);
+    graph.addChainEnd (isInput, point.chain, point.position, choice, point.sources, point.destinations);
 }
 
 void GraphEditorPanel::removeFromChain (NodeID nodeID)

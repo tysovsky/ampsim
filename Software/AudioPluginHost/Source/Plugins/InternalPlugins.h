@@ -170,6 +170,18 @@ public:
     /** The choice for a channel, or for the pair it starts (an even channel), counting from 0. */
     static int getChoiceFor (int firstChannel, bool isPair) noexcept    { return isPair ? maxChannels + firstChannel / 2 : firstChannel; }
 
+    /** A choice's channel, counting from 0, and the second of a pair, or -1. */
+    static std::pair<int, int> getChannelsFor (int choice) noexcept;
+
+    /** Whether a choice's channel, or both of its pair, are among the first numChannels. */
+    static bool isChoiceWithin (int choice, int numChannels) noexcept;
+
+    /** How many channels the chains' inputs (or outputs) can choose from: the audio device's ones
+        that are turned on in the settings, which are the ones the graph gets, up to maxChannels.
+        All maxChannels while no device is open. Channels past these would be silent.
+    */
+    static int getNumChannelsAvailable (AudioDeviceManager&, bool isInput);
+
     /** What it's called: the name it's been given, or else its channel. */
     String getBlockName() const;
 

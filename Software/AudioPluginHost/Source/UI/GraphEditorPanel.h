@@ -83,6 +83,11 @@ public:
     /** Adds a chain underneath the others: an input and an output, connected to each other. */
     void addChain();
 
+    /** How many channels a new input (or output) can be given, e.g. the audio device's, so that a
+        new chain's input doesn't land on a channel the device doesn't have. Without it, all of
+        ChainEndProcessor::maxChannels. */
+    std::function<int (bool isInput)> getNumChannels;
+
     /** Removes a block from its chain. A plugin that was the last in its column leaves the steps
         either side joined up; a chain's last input or output takes the whole chain with it.
     */

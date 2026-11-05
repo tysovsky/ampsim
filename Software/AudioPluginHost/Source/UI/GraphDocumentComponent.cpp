@@ -329,6 +329,12 @@ void GraphDocumentComponent::init()
     graphPanel->setLinksEnabled(AudioSettingsPopup::areFreeLinksOn());
     graphPanel->addListener(this);
 
+    // New inputs and outputs go on channels the audio device has
+    graphPanel->getNumChannels = [this](bool isInput)
+    {
+        return ChainEndProcessor::getNumChannelsAvailable(deviceManager, isInput);
+    };
+
     // Scrolled by dragging, as there's no mouse wheel on the touchscreen and no room for scrollbars
     chainViewport.setViewedComponent(graphPanel.get(), false);
     chainViewport.setScrollBarsShown(false, false, true, true);
