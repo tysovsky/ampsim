@@ -165,7 +165,8 @@ GraphEditorPanel::GraphEditorPanel (PluginGraph& g, KnownPluginList& kpl)
             moduleSets.emplace (name, std::move (set));
 
     picker = std::make_unique<PluginPicker> (knownPlugins, moduleSets);
-    chainEndControls = parseXML ("<Controls><Choice param=\"Channel\" label=\"Channel\" style=\"list\"/></Controls>");
+    chainInputControls = parseXML ("<Controls><Choice param=\"Channel\" label=\"Channel\" style=\"list\"/><InputMode/></Controls>");
+    chainOutputControls = parseXML ("<Controls><Choice param=\"Channel\" label=\"Channel\" style=\"list\"/></Controls>");
 }
 
 GraphEditorPanel::~GraphEditorPanel()
@@ -700,9 +701,10 @@ BlockIcon GraphEditorPanel::getBlockIcon (AudioProcessorGraph::NodeID nodeID) co
 
 const XmlElement* GraphEditorPanel::getBlockControls (AudioProcessorGraph::NodeID nodeID) const
 {
-    // A chain's inputs and outputs have the one control: which channel
-    if (getChainEnd (nodeID) != nullptr)
-        return chainEndControls.get();
+    // A chain's inputs and outputs have their channel to choose, and an input on the MAYA44 eX card's
+    // channels has their mode too (see ControlStrip's <InputMode/>)
+    if (auto* end = getChainEnd (nodeID))
+        return dynamic_cast<ChainInputProcessor*> (end) != nullptr ? chainInputControls.get() : chainOutputControls.get();
 
     auto* node = graph.graph.getNodeForId (nodeID);
     auto* set = node != nullptr ? findModuleSet (*node) : nullptr;

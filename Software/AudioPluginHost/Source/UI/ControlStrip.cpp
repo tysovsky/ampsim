@@ -143,9 +143,13 @@ public:
     virtual void setFromSwitch (bool /*isOn*/) {}
     virtual bool isOn() const     { return false; }
 
+    /** Whether it has anything to show, apart from its <Show>s. */
+    virtual bool isAvailable() const    { return true; }
+
     bool isShown (const AudioProcessorGraph::Node& node) const
     {
-        return std::all_of (conditions.begin(), conditions.end(), [&] (const Condition& c) { return c.holds (node); });
+        return isAvailable()
+            && std::all_of (conditions.begin(), conditions.end(), [&] (const Condition& c) { return c.holds (node); });
     }
 
     const int knob, switchNumber;       // the controller's knob and switch for it, or 0
@@ -451,6 +455,90 @@ private:
 };
 
 //==============================================================================
+// The mode of the MAYA44 eX card's pair of inputs that a chain's input takes its signal from (see
+// Maya44Inputs), as a row of buttons: Line, Mic or Mic + 48V for inputs 1/2, Line or Hi-Z for 3/4.
+// It follows the input onto other channels, and is hidden while they aren't the card's.
+class ControlStrip::InputModeControl final : public Control
+{
+public:
+    InputModeControl (const XmlElement& e, std::function<std::optional<Maya44Inputs::InputPair>()> findInputsToUse)
+        : Control (e, {}), definition (e), findInputs (std::move (findInputsToUse))
+    {
+        refresh();
+    }
+
+    bool isAvailable() const override               { return choice != nullptr; }
+    int getPreferredWidth() const override          { return choice != nullptr ? choice->getPreferredWidth() : 0; }
+
+    void refresh() override
+    {
+        // The card is only asked for the mode when the input moves onto another pair (or onto the
+        // card from elsewhere), and after the mode has been switched here
+        if (const auto found = findInputs(); found != inputs)
+        {
+            inputs = found;
+            readMode();
+            createChoice();
+        }
+
+        if (choice != nullptr)
+            choice->refresh();
+    }
+
+    void resized() override
+    {
+        if (choice != nullptr)
+            choice->setBounds (getLocalBounds());
+    }
+
+private:
+    bool isInputs12() const     { return inputs == Maya44Inputs::InputPair::inputs12; }
+
+    void createChoice()
+    {
+        choice.reset();
+
+        if (! inputs.has_value() || ! mode.has_value())
+            return;
+
+        // A mode with no button (1/2's digital input, chosen in ESI's panel) lights none of them
+        choice = std::make_unique<ChoiceControl> (definition, isInputs12() ? "Input 1/2" : "Input 3/4",
+                                                  isInputs12() ? StringArray { "Line", "Mic", "Mic + 48V" }
+                                                               : StringArray { "Line", "Hi-Z" },
+                                                  [this] { return mode.value_or (-1); },
+                                                  [this] (int newMode) { setMode (newMode); });
+        addAndMakeVisible (*choice);
+        resized();
+    }
+
+    void readMode()
+    {
+        mode.reset();
+
+        if (inputs.has_value())
+            if (const auto modes = Maya44Inputs::read())
+                mode = isInputs12() ? (int) modes->input12 : (int) modes->input34;
+    }
+
+    void setMode (int newMode)
+    {
+        if (isInputs12())
+            Maya44Inputs::setInput12Mode ((Maya44Inputs::Input12Mode) newMode);
+        else
+            Maya44Inputs::setInput34Mode ((Maya44Inputs::Input34Mode) newMode);
+
+        // Whether or not that worked, show what the card is set to now
+        readMode();
+    }
+
+    const XmlElement definition;    // kept for making the buttons again for another pair
+    const std::function<std::optional<Maya44Inputs::InputPair>()> findInputs;
+    std::optional<Maya44Inputs::InputPair> inputs;
+    std::optional<int> mode;
+    std::unique_ptr<ChoiceControl> choice;
+};
+
+//==============================================================================
 // A button that pulses a parameter up and back down, for plugins that act on a parameter
 // changing, such as stepping to the next preset
 class ControlStrip::TriggerControl final : public Control
@@ -752,6 +840,16 @@ void ControlStrip::addControls (const XmlElement& element, const std::vector<Con
         else if (child->hasTagName ("Sounds"))
         {
             control = std::make_unique<SoundsControl> (node, *child);
+        }
+        else if (child->hasTagName ("InputMode"))
+        {
+            control = std::make_unique<InputModeControl> (*child, [this]() -> std::optional<Maya44Inputs::InputPair>
+            {
+                if (node == nullptr || findCardInputs == nullptr)
+                    return {};
+
+                return findCardInputs (*node);
+            });
         }
         else if (auto* parameter = findParameterFor (processor, *child))
         {

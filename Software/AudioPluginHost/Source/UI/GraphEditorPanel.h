@@ -293,7 +293,7 @@ private:
     std::map<String, PluginModuleSet> moduleSets;   // by plugin name
     std::unique_ptr<PluginPicker> picker;
     TextEntryPopup textEntry;
-    std::unique_ptr<XmlElement> chainEndControls;   // the inputs' and outputs' channel choice
+    std::unique_ptr<XmlElement> chainInputControls, chainOutputControls;   // the channel choice, and the input's mode
     std::vector<Chain> chains;
     bool linksEnabled = false;
     std::vector<Link> links;                // with free links on; none while they're off

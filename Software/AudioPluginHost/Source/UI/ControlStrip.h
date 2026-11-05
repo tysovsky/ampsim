@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "../Audio/Maya44Inputs.h"
 
 //==============================================================================
 /**
@@ -23,6 +24,10 @@
                                                                  through the ones in its group, or while there
                                                                  are none, pulse previous and next, if given,
                                                                  to step through the plugin's own presets
+      <InputMode/>                                               for a chain's input, the mode of the MAYA44 eX
+                                                                 card's inputs it takes its signal from: Line,
+                                                                 Mic or Mic + 48V for 1/2, Line or Hi-Z for 3/4
+                                                                 (see findCardInputs); hidden on other channels
       <View name="engine1" label="Type" options="A|B"/>          picks which of the <Show view="..."> controls
                                                                  are shown, for something the plugin doesn't
                                                                  say, such as which kind of engine a preset
@@ -63,6 +68,10 @@ public:
         which changes a property of the block, not the plugin. */
     std::function<void()> onViewChange;
 
+    /** For an <InputMode/>: which of the MAYA44 eX card's pairs of inputs a block takes its signal
+        from, if any. Asked again as the block's channel changes. Without it, <InputMode/> isn't shown. */
+    std::function<std::optional<Maya44Inputs::InputPair> (const AudioProcessorGraph::Node&)> findCardInputs;
+
     void resized() override;
 
 private:
@@ -73,6 +82,7 @@ private:
     class ChoiceControl;
     class TriggerControl;
     class SoundsControl;
+    class InputModeControl;
 
     void addControls (const XmlElement&, const std::vector<Condition>&);
     void updateVisibility();

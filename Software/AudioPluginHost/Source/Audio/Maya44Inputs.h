@@ -21,6 +21,9 @@
 */
 namespace Maya44Inputs
 {
+    /** The card's two pairs of analog inputs, each with modes of its own. */
+    enum class InputPair { inputs12, inputs34 };
+
     /** The modes of inputs 1/2. Digital is the S/PDIF input taking their place, which
         ESI's panel only allows while a digital signal is connected. */
     enum class Input12Mode { line = 0, mic = 1, micPhantom = 2, digital = 3 };

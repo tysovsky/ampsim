@@ -1,5 +1,6 @@
 #include "BlockControlsPanel.h"
 #include "ThemeManager.h"
+#include "../Plugins/InternalPlugins.h"
 
 namespace
 {
@@ -7,6 +8,45 @@ namespace
     constexpr int infoWidth = 190;
     constexpr int buttonHeight = 44;
     constexpr int editButtonWidth = 80;
+
+    // Which of the MAYA44 eX card's pairs of inputs a chain's input takes its signal from, if any,
+    // by the names of the audio device and the device channel it's on. The card's ASIO driver
+    // names its channels "ESI MAYA44 XTe 1/2:L" and so on, and Windows' own drivers make a device
+    // of each pair, e.g. "ESI MAYA44 eX Ch34 (ESI MAYA44 eX Audio)".
+    std::optional<Maya44Inputs::InputPair> findMaya44Inputs (AudioDeviceManager& deviceManager,
+                                                             const AudioProcessorGraph::Node& node)
+    {
+        auto* input = dynamic_cast<ChainInputProcessor*> (node.getProcessor());
+        auto* device = deviceManager.getCurrentAudioDevice();
+
+        if (input == nullptr || device == nullptr)
+            return {};
+
+        // The graph's input channels are the device's active ones, in order
+        const auto active = device->getActiveInputChannels();
+        const int graphChannel = input->getChosenChannels().first;
+        int deviceChannel = active.findNextSetBit (0);
+
+        for (int i = 0; i < graphChannel && deviceChannel >= 0; ++i)
+            deviceChannel = active.findNextSetBit (deviceChannel + 1);
+
+        if (graphChannel < 0 || deviceChannel < 0)
+            return {};
+
+        const auto name = deviceManager.getAudioDeviceSetup().inputDeviceName + " "
+                        + device->getInputChannelNames()[deviceChannel];
+
+        if (! name.containsIgnoreCase ("MAYA44"))
+            return {};
+
+        if (name.contains ("1/2") || name.containsIgnoreCase ("Ch12"))
+            return Maya44Inputs::InputPair::inputs12;
+
+        if (name.contains ("3/4") || name.containsIgnoreCase ("Ch34"))
+            return Maya44Inputs::InputPair::inputs34;
+
+        return {};
+    }
 }
 
 //==============================================================================
@@ -16,6 +56,7 @@ BlockControlsPanel::BlockControlsPanel (AudioDeviceManager& dm)
     setLookAndFeel (&lookAndFeel);
     addAndMakeVisible (strip);
     strip.onViewChange = [this] { if (onViewChange != nullptr) onViewChange(); };
+    strip.findCardInputs = [this] (const AudioProcessorGraph::Node& n) { return findMaya44Inputs (deviceManager, n); };
 
     closeButton.setButtonText (String (CharPointer_UTF8 ("\xc3\x97")));
 
