@@ -1,5 +1,6 @@
 #include "AudioSettingsPopup.h"
 #include "MainHostWindow.h"
+#include "../Audio/Maya44Inputs.h"
 
 namespace
 {
@@ -11,6 +12,7 @@ namespace
     constexpr int columnGap = 32;
     constexpr int labelWidth = 160;
     constexpr int freeLinksWidth = 300;
+    constexpr int driverSettingsWidth = 170;
 
     // The user setting that turns free links on
     const char* const freeLinksSetting = "freeLinks";
@@ -168,7 +170,8 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
         { &midiInputsLabel, "MIDI inputs" },
         { &midiOutputLabel, "MIDI output" },
         { &noMidiInputsLabel, "No MIDI inputs found" },
-        { &themeLabel, "Theme" }
+        { &themeLabel, "Theme" },
+        { &cardInputsLabel, "MAYA44 inputs" }
     };
 
     for (auto& [label, text] : labels)
@@ -180,11 +183,22 @@ AudioSettingsPopup::AudioSettingsPopup(AudioDeviceManager& dm)
     }
 
     for (auto* box : { &deviceTypeBox, &outputDeviceBox, &inputDeviceBox, &sampleRateBox, &bufferSizeBox,
-                       &outputChannelsBox, &inputChannelsBox, &midiOutputBox, &themeBox })
+                       &outputChannelsBox, &inputChannelsBox, &midiOutputBox, &themeBox, &input12ModeBox, &input34ModeBox })
     {
         box->setTextWhenNoChoicesAvailable("None available");
         addAndMakeVisible(box);
     }
+
+    // The card's input modes, with IDs one more than the Maya44Inputs modes. The S/PDIF input that
+    // 1/2 can also be switched to isn't offered, but is shown if ESI's panel has chosen it.
+    input12ModeBox.addItem("1/2: Line", 1 + (int)Maya44Inputs::Input12Mode::line);
+    input12ModeBox.addItem("1/2: Mic", 1 + (int)Maya44Inputs::Input12Mode::mic);
+    input12ModeBox.addItem("1/2: Mic + 48V", 1 + (int)Maya44Inputs::Input12Mode::micPhantom);
+    input34ModeBox.addItem("3/4: Line", 1 + (int)Maya44Inputs::Input34Mode::line);
+    input34ModeBox.addItem("3/4: Hi-Z", 1 + (int)Maya44Inputs::Input34Mode::hiZ);
+
+    input12ModeBox.onChange = [this] { cardInputModeChosen(true); };
+    input34ModeBox.onChange = [this] { cardInputModeChosen(false); };
 
     const auto& themes = getThemeManager().getThemes();
 
@@ -328,8 +342,18 @@ void AudioSettingsPopup::resized()
     inputDeviceBox.setBounds(inputRow.withTrimmedRight(rowGap));
 
     sampleRateBox.setBounds(nextRow(left, sampleRateLabel));
-    bufferSizeBox.setBounds(nextRow(left, bufferSizeLabel));
-    controlPanelButton.setBounds(left.removeFromTop(rowHeight).withTrimmedLeft(labelWidth).withWidth(220));
+
+    // What the driver's own settings mostly change is its buffer size, so its button goes beside it
+    auto bufferSizeRow = nextRow(left, bufferSizeLabel);
+
+    if (controlPanelButton.isVisible())
+        controlPanelButton.setBounds(bufferSizeRow.removeFromRight(driverSettingsWidth));
+
+    bufferSizeBox.setBounds(bufferSizeRow.withTrimmedRight(controlPanelButton.isVisible() ? rowGap : 0));
+
+    auto cardInputsRow = nextRow(left, cardInputsLabel);
+    input12ModeBox.setBounds(cardInputsRow.removeFromLeft((cardInputsRow.getWidth() - rowGap) / 2));
+    input34ModeBox.setBounds(cardInputsRow.withTrimmedLeft(rowGap));
 
     outputChannelsBox.setBounds(nextRow(right, outputChannelsLabel));
     inputChannelsBox.setBounds(nextRow(right, inputChannelsLabel));
@@ -435,11 +459,55 @@ void AudioSettingsPopup::updateControls()
         box->setEnabled(device != nullptr && box->getNumItems() > 0);
 
     testButton.setEnabled(device != nullptr);
-    controlPanelButton.setVisible(device != nullptr && device->hasControlPanel());
+
+    // The buffer size box makes room for the button when there is one
+    const bool hasControlPanel = device != nullptr && device->hasControlPanel();
+
+    if (controlPanelButton.isVisible() != hasControlPanel)
+    {
+        controlPanelButton.setVisible(hasControlPanel);
+        resized();
+    }
 
     themeBox.setSelectedId(getThemeManager().getCurrentThemeIndex() + 1, dontSendNotification);
 
     updateMidiControls();
+    updateCardInputs();
+}
+
+void AudioSettingsPopup::updateCardInputs()
+{
+    // Read from the card each time, as ESI's panel may have switched them since
+    const auto modes = Maya44Inputs::read();
+
+    for (auto* component : { (Component*)&cardInputsLabel, (Component*)&input12ModeBox, (Component*)&input34ModeBox })
+        component->setVisible(modes.has_value());
+
+    if (!modes.has_value())
+        return;
+
+    const bool isDigital = modes->input12 == Maya44Inputs::Input12Mode::digital;
+    input12ModeBox.setTextWhenNothingSelected(isDigital ? "1/2: Digital" : String());
+    input12ModeBox.setSelectedId(isDigital ? 0 : 1 + (int)modes->input12, dontSendNotification);
+    input34ModeBox.setSelectedId(1 + (int)modes->input34, dontSendNotification);
+}
+
+void AudioSettingsPopup::cardInputModeChosen(bool isInput12)
+{
+    auto& box = isInput12 ? input12ModeBox : input34ModeBox;
+
+    if (box.getSelectedId() == 0)
+        return;
+
+    const bool switched = isInput12 ? Maya44Inputs::setInput12Mode((Maya44Inputs::Input12Mode)(box.getSelectedId() - 1))
+                                    : Maya44Inputs::setInput34Mode((Maya44Inputs::Input34Mode)(box.getSelectedId() - 1));
+
+    if (!switched)
+        AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "Couldn't switch the input",
+                                         "The MAYA44 eX card's driver didn't respond.");
+
+    // Show what the card is actually set to now
+    updateCardInputs();
 }
 
 void AudioSettingsPopup::updateMidiControls()
